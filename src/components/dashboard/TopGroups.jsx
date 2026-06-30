@@ -12,7 +12,7 @@ function TopGroups() {
           <button
             key={group.name}
             type="button"
-            className="flex w-full items-center gap-2 rounded-xl p-2 text-left transition hover:bg-slate-50"
+            className="flex min-h-12 w-full items-center gap-2 rounded-xl p-2 text-left transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
             <AvatarPlaceholder className="h-9 w-9" label="Group" />
             <span className="min-w-0">

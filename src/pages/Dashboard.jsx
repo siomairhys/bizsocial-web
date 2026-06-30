@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+
 import BalanceSummaryCards from '../components/dashboard/BalanceSummaryCards'
 import BizQuestChallengeCard from '../components/dashboard/BizQuestChallengeCard'
 import CredTrackOverview from '../components/dashboard/CredTrackOverview'
@@ -11,21 +13,54 @@ import SponsorStrip from '../components/dashboard/SponsorStrip'
 import TopGroups from '../components/dashboard/TopGroups'
 import UpcomingEvents from '../components/dashboard/UpcomingEvents'
 import WelcomeBanner from '../components/dashboard/WelcomeBanner'
+import { useAuth } from '../modules/auth/context/useAuth'
+import { dashboardRepository } from '../repositories/dashboardRepository'
 
 function Dashboard() {
+  const { token, user } = useAuth()
+  const [overviewData, setOverviewData] = useState(null)
+
+  useEffect(() => {
+    let active = true
+
+    async function loadDashboardOverview() {
+      if (!token) {
+        return
+      }
+
+      try {
+        const nextData = await dashboardRepository.getOverview(token)
+        if (active) {
+          setOverviewData(nextData)
+        }
+      } catch (error) {
+        console.error('Failed to load dashboard overview:', error)
+        if (active) {
+          setOverviewData(null)
+        }
+      }
+    }
+
+    loadDashboardOverview()
+
+    return () => {
+      active = false
+    }
+  }, [token])
+
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,72%)_minmax(0,28%)] 2xl:grid-cols-[minmax(0,70%)_minmax(0,30%)]">
       <div className="min-w-0 space-y-4">
-        <WelcomeBanner />
+        <WelcomeBanner user={user} />
         <SponsorStrip />
-        <MetricsGrid />
+        <MetricsGrid metrics={overviewData?.metrics} />
         <div className="grid gap-4 2xl:grid-cols-2">
-          <FundMeCampaignCard />
+          <FundMeCampaignCard campaign={overviewData?.campaignSummary} />
           <BizQuestChallengeCard />
         </div>
         <div className="grid gap-4 2xl:grid-cols-2">
           <div className="space-y-4">
-            <RecentActivity />
+            <RecentActivity activities={overviewData?.recentActivity} />
             <TopGroups />
           </div>
           <div className="space-y-4">
@@ -35,11 +70,11 @@ function Dashboard() {
         </div>
       </div>
 
-      <div className="min-w-0 space-y-4 xl:sticky xl:top-24 xl:h-fit">
+      <div className="min-w-0 space-y-4 xl:self-start">
         <CredTrackOverview />
-        <BalanceSummaryCards />
-        <UpcomingEvents />
-        <MessagePreview />
+        <BalanceSummaryCards summary={overviewData?.balanceSummary} />
+        <UpcomingEvents events={overviewData?.upcomingEvents} />
+        <MessagePreview messages={overviewData?.messages} />
       </div>
     </div>
   )

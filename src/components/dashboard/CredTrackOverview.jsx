@@ -19,7 +19,7 @@ function CredTrackOverview() {
         </button>
       </div>
 
-      <div className="mt-4 flex items-center gap-4">
+      <div className="mt-4 flex flex-col gap-4 2xl:flex-row 2xl:items-center">
         <svg className="h-28 w-28" viewBox="0 0 124 124" aria-label="CredTrack score gauge">
           <circle cx="62" cy="62" r={radius} stroke="rgba(255,255,255,0.25)" strokeWidth="10" fill="none" />
           <circle

@@ -2,24 +2,29 @@ import Card from '../common/Card'
 import ProgressBar from '../common/ProgressBar'
 import { DynamicIcon } from '../common/icons'
 
-function FundMeCampaignCard() {
-  const progress = 62
+function FundMeCampaignCard({ campaign }) {
+  const progress = Number(campaign?.progressPercent ?? 62)
+  const campaignTitle = campaign?.title || 'Holloway Designs Growth Fund'
+  const campaignDescription = campaign?.description || 'Help us expand our design studio and create more jobs in our community.'
+  const raisedAmount = Number(campaign?.raisedAmount ?? 24850)
+  const goalAmount = Number(campaign?.goalAmount ?? 40000)
+  const supporterCount = Number(campaign?.supporters ?? 124)
   const radius = 38
   const circumference = 2 * Math.PI * radius
   const stroke = circumference * ((100 - progress) / 100)
 
   return (
     <Card>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold text-slate-900">FundMe Campaign</h3>
-        <button type="button" className="text-slate-400 hover:text-slate-700" aria-label="Share campaign">
+        <button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-50 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" aria-label="Share campaign">
           <DynamicIcon name="Share2" className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-[116px_1fr]">
         <div className="flex items-center justify-center">
-          <svg className="h-24 w-24" viewBox="0 0 96 96" aria-label="Campaign progress 62 percent">
+          <svg className="h-24 w-24" viewBox="0 0 96 96" aria-label={`Campaign progress ${progress} percent`}>
             <circle cx="48" cy="48" r={radius} stroke="#dbeafe" strokeWidth="8" fill="none" />
             <circle
               cx="48"
@@ -40,19 +45,21 @@ function FundMeCampaignCard() {
         </div>
 
         <div>
-          <h4 className="text-sm font-semibold text-slate-900">Holloway Designs Growth Fund</h4>
+          <h4 className="text-sm font-semibold text-slate-900">{campaignTitle}</h4>
           <p className="mt-1 text-xs text-slate-500">
-            Help us expand our design studio and create more jobs in our community.
+            {campaignDescription}
           </p>
-          <p className="mt-2 text-sm font-semibold text-slate-900">$24,850 raised of $40,000 goal</p>
-          <ProgressBar value={62} className="mt-2" />
-          <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-            <span>124 supporters</span>
+          <p className="mt-2 text-sm font-semibold text-slate-900">
+            ${raisedAmount.toLocaleString()} raised of ${goalAmount.toLocaleString()} goal
+          </p>
+          <ProgressBar value={progress} className="mt-2" />
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+            <span>{supporterCount} supporters</span>
             <span>18 days left</span>
           </div>
           <button
             type="button"
-            className="mt-3 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
+            className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:w-auto"
           >
             View Campaign
           </button>

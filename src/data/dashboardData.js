@@ -19,22 +19,26 @@ export const quickActions = [
   {
     label: 'Create Pitch',
     description: 'Share your business',
-    icon: 'Clapperboard',
+    icon: 'Play',
+    route: '/pitch-reels',
   },
   {
     label: 'Start Fundraiser',
     description: 'Raise capital',
     icon: 'CircleDollarSign',
+    route: '/fundme',
   },
   {
     label: 'Join Challenge',
     description: 'Win & grow',
     icon: 'Trophy',
+    route: '/bizquest-challenge',
   },
   {
     label: 'Update Profile',
     description: 'Boost your visibility',
     icon: 'UserRound',
+    route: '/profile',
   },
 ]
 

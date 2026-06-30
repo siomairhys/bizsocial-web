@@ -3,7 +3,7 @@ import PageContainer from './PageContainer'
 import Sidebar from './Sidebar'
 import TopHeader from './TopHeader'
 
-function AppShell({ children }) {
+function AppShell({ children, user, currentRoute, onNavigate, onSignOut }) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
   useEffect(() => {
@@ -17,10 +17,16 @@ function AppShell({ children }) {
   }, [])
 
   return (
-    <div className="min-h-screen bg-[var(--page-bg)] text-slate-800">
-      <Sidebar />
-      <div className="lg:pl-64">
-        <TopHeader onMenuClick={() => setMobileSidebarOpen(true)} />
+    <div className="min-h-screen overflow-x-hidden bg-[var(--page-bg)] text-slate-800">
+      <Sidebar currentRoute={currentRoute} onNavigate={onNavigate} />
+      <div className="lg:pl-[180px]">
+        <TopHeader
+          onMenuClick={() => setMobileSidebarOpen(true)}
+          user={user}
+          currentRoute={currentRoute}
+          onNavigate={onNavigate}
+          onSignOut={onSignOut}
+        />
         <PageContainer>{children}</PageContainer>
       </div>
 
@@ -32,7 +38,12 @@ function AppShell({ children }) {
             onClick={() => setMobileSidebarOpen(false)}
             aria-label="Close sidebar overlay"
           />
-          <Sidebar mobile onClose={() => setMobileSidebarOpen(false)} />
+          <Sidebar
+            mobile
+            currentRoute={currentRoute}
+            onNavigate={onNavigate}
+            onClose={() => setMobileSidebarOpen(false)}
+          />
         </div>
       ) : null}
     </div>

@@ -1,16 +1,30 @@
-# React + Vite
+# BizSocials Web
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Vite/React frontend for the BizSocials dashboard.
 
-Currently, two official plugins are available:
+## Environment
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Create `.env` from `.env.example` and point the API domain to your backend:
 
-## React Compiler
+```env
+VITE_APP_DOMAIN=http://localhost:5173
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## API Structure
 
-## Expanding the ESLint configuration
+All API calls should go through the centralized layers:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- `src/config/appConfig.js` stores the app domain and API base URL.
+- `src/services/httpClient.js` wraps `fetch`, headers, JSON parsing, auth token support, and API errors.
+- `src/repositories/apiEndpoints.js` stores endpoint paths.
+- `src/repositories/authRepository.js` contains login/signup/profile/logout API calls.
+
+Feature modules call repositories instead of calling `fetch` directly.
+
+## Auth Flow
+
+- `#/login` renders the login module.
+- `#/signup` renders the signup module.
+- `#/dashboard` is shown after a valid auth response is stored.
+- Auth session state is centralized in `src/modules/auth/context/AuthContext.jsx`.
