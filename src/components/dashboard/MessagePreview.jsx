@@ -2,15 +2,17 @@ import AvatarPlaceholder from '../common/AvatarPlaceholder'
 import Card from '../common/Card'
 import SectionHeader from '../common/SectionHeader'
 import StatusBadge from '../common/StatusBadge'
-import { messagePreview } from '../../data/dashboardData'
 
 function MessagePreview({ messages }) {
-  const items = Array.isArray(messages) && messages.length > 0 ? messages : messagePreview
+  const items = Array.isArray(messages) ? messages : []
 
   return (
     <Card>
       <SectionHeader title="Messages" action="View All" />
       <div className="space-y-2">
+        {items.length === 0 ? (
+          <p className="px-2 py-2 text-sm text-slate-500">Messages preview is not connected to database yet.</p>
+        ) : null}
         {items.map((message) => (
           <button
             key={`${message.name}-${message.time}`}

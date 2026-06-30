@@ -10,9 +10,14 @@ function getDisplayName(user) {
   return fullName || user?.name || user?.fullName || user?.full_name || user?.email || 'BizSocials Member'
 }
 
+function getAvatarUrl(user) {
+  return user?.photoUrl || user?.avatarUrl || user?.avatar_url || ''
+}
+
 function WelcomeBanner({ user }) {
   const displayName = getDisplayName(user)
   const firstName = displayName.split(' ')[0] || displayName
+  const avatarUrl = getAvatarUrl(user)
 
   return (
     <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0630b7] via-[#104be2] to-[#1d35d8] px-4 py-4 text-white shadow-xl shadow-blue-950/25 sm:px-5 lg:px-6">
@@ -29,6 +34,7 @@ function WelcomeBanner({ user }) {
           <AvatarPlaceholder
             className="h-16 w-16 flex-none border-2 border-white/50 from-white/95 to-blue-100/85 text-blue-900 shadow-lg shadow-blue-950/20 sm:h-20 sm:w-20"
             label={displayName}
+            imageUrl={avatarUrl}
           />
 
           <div className="min-w-0 flex-1">

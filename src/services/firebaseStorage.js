@@ -19,8 +19,20 @@ let storage = null
 let auth = null
 
 function assertFirebaseConfigured() {
-  if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.storageBucket) {
-    throw new Error('Firebase is not configured. Add VITE_FIREBASE_* variables to your web .env file.')
+  const requiredKeys = [
+    'apiKey',
+    'authDomain',
+    'projectId',
+    'storageBucket',
+    'messagingSenderId',
+    'appId',
+  ]
+
+  const missing = requiredKeys.filter((key) => !firebaseConfig[key])
+  if (missing.length > 0) {
+    throw new Error(
+      `Firebase is not configured. Missing: ${missing.join(', ')}. Add VITE_FIREBASE_* variables to your web .env file.`,
+    )
   }
 }
 

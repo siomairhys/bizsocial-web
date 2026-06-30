@@ -18,7 +18,11 @@ const accountMenuItems = [
 ]
 
 function getDisplayName(user) {
-  return user?.name || user?.fullName || user?.full_name || user?.email || 'BizSocials Member'
+  const firstName = user?.firstName || user?.first_name || ''
+  const lastName = user?.lastName || user?.last_name || ''
+  const fullName = [firstName, lastName].filter(Boolean).join(' ')
+
+  return fullName || user?.name || user?.fullName || user?.full_name || user?.email || 'BizSocials Member'
 }
 
 function getBusinessName(user) {
@@ -31,6 +35,10 @@ function getBusinessName(user) {
   )
 }
 
+function getAvatarUrl(user) {
+  return user?.photoUrl || user?.avatarUrl || user?.avatar_url || ''
+}
+
 function TopHeader({ onMenuClick, user, currentRoute, onNavigate, onSignOut }) {
   const [createOpen, setCreateOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
@@ -38,6 +46,7 @@ function TopHeader({ onMenuClick, user, currentRoute, onNavigate, onSignOut }) {
   const profileRef = useRef(null)
   const displayName = getDisplayName(user)
   const businessName = getBusinessName(user)
+  const avatarUrl = getAvatarUrl(user)
 
   useEffect(() => {
     function handleClose(event) {
@@ -144,7 +153,7 @@ function TopHeader({ onMenuClick, user, currentRoute, onNavigate, onSignOut }) {
               aria-expanded={profileOpen}
               aria-haspopup="menu"
             >
-              <AvatarPlaceholder className="h-10 w-10" label={displayName} />
+              <AvatarPlaceholder className="h-10 w-10" label={displayName} imageUrl={avatarUrl} />
               <span className="hidden max-w-44 text-left md:block">
                 <span className="block truncate text-sm font-semibold text-slate-900">{displayName}</span>
                 <span className="block truncate text-xs text-slate-500">{businessName}</span>

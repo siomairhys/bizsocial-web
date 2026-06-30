@@ -1,14 +1,18 @@
 import Card from '../common/Card'
 import SectionHeader from '../common/SectionHeader'
 import AvatarPlaceholder from '../common/AvatarPlaceholder'
-import { groups } from '../../data/dashboardData'
 
-function TopGroups() {
+function TopGroups({ groups }) {
+  const items = Array.isArray(groups) ? groups : []
+
   return (
     <Card>
       <SectionHeader title="Top Groups" action="View All" />
       <div className="space-y-2">
-        {groups.map((group) => (
+        {items.length === 0 ? (
+          <p className="px-2 py-2 text-sm text-slate-500">Top groups are not connected to database yet.</p>
+        ) : null}
+        {items.map((group) => (
           <button
             key={group.name}
             type="button"

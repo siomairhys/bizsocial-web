@@ -81,32 +81,32 @@ function mapOverview(payload) {
     {
       label: 'Profile Views',
       value: numberWithCommas(summary.profile_views),
-      trend: '--',
+      trend: null,
       icon: 'Eye',
     },
     {
       label: 'Followers',
       value: numberWithCommas(summary.followers),
-      trend: '--',
+      trend: null,
       icon: 'Users2',
     },
     {
       label: 'Engagement',
       value: `${Number(summary.engagement_rate || 0).toFixed(1)}%`,
-      trend: '--',
+      trend: null,
       icon: 'Heart',
     },
     {
       label: 'Funding Raised',
       value: asCurrency(summary.funding_raised),
-      trend: '--',
+      trend: null,
       icon: 'CircleDollarSign',
       accent: 'green',
     },
   ]
 
   const recentActivity = (payload?.recent_activity || []).map((item, index) => ({
-    text: item.title || item.description || 'Activity',
+    text: item.title || item.description || '',
     time: toRelativeTime(item.occurred_at),
     icon: mapActivityIcon(item.action),
     key: item.id || `${item.action || 'activity'}-${index}`,
@@ -117,27 +117,27 @@ function mapOverview(payload) {
     return {
       month: formatted.month,
       day: formatted.day,
-      title: event.title || 'Untitled Event',
+      title: event.title || '',
       date: formatted.date,
       time: formatted.time,
-      location: event.location || 'TBD',
-      attendees: 0,
+      location: event.location || '',
+      attendees: Number(event.attendees || 0),
       role: event.role,
       eventId: event.event_id,
     }
   })
 
   const messages = (payload?.messages_preview || []).map((item) => ({
-    name: item.conversation_title || `Conversation #${item.conversation_id}`,
-    message: item.last_message_body || 'No messages yet',
+    name: item.conversation_title || '',
+    message: item.last_message_body || '',
     time: toRelativeTime(item.last_message_at),
     unread: Number(item.unread_count || 0),
   }))
 
   const balanceSummary = {
     bizbucksBalance: Number(summary.bizbucks_balance || 0),
-    fundingReadiness: 82,
-    fundingReadinessLabel: 'Excellent',
+    fundingReadiness: summary.funding_readiness != null ? Number(summary.funding_readiness) : null,
+    fundingReadinessLabel: summary.funding_readiness_label || null,
   }
 
   const campaignSummary = campaign
@@ -159,6 +159,12 @@ function mapOverview(payload) {
     messages,
     balanceSummary,
     campaignSummary,
+    credTrack: payload?.credtrack_summary || null,
+    topGroups: payload?.top_groups || [],
+    learningCourses: payload?.learning_hub || [],
+    marketplaceProducts: payload?.marketplace_spotlight || [],
+    sponsors: payload?.sponsors || [],
+    challenge: payload?.bizquest_challenge || null,
   }
 }
 

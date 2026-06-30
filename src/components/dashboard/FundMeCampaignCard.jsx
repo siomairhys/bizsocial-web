@@ -3,15 +3,26 @@ import ProgressBar from '../common/ProgressBar'
 import { DynamicIcon } from '../common/icons'
 
 function FundMeCampaignCard({ campaign }) {
-  const progress = Number(campaign?.progressPercent ?? 62)
-  const campaignTitle = campaign?.title || 'Holloway Designs Growth Fund'
-  const campaignDescription = campaign?.description || 'Help us expand our design studio and create more jobs in our community.'
-  const raisedAmount = Number(campaign?.raisedAmount ?? 24850)
-  const goalAmount = Number(campaign?.goalAmount ?? 40000)
-  const supporterCount = Number(campaign?.supporters ?? 124)
+  const progress = campaign?.progressPercent != null ? Number(campaign.progressPercent) : 0
+  const campaignTitle = campaign?.title || ''
+  const campaignDescription = campaign?.description || ''
+  const raisedAmount = Number(campaign?.raisedAmount || 0)
+  const goalAmount = Number(campaign?.goalAmount || 0)
+  const supporterCount = Number(campaign?.supporters || 0)
   const radius = 38
   const circumference = 2 * Math.PI * radius
   const stroke = circumference * ((100 - progress) / 100)
+
+  if (!campaign) {
+    return (
+      <Card>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-slate-900">FundMe Campaign</h3>
+        </div>
+        <p className="text-sm text-slate-500">FundMe campaign card is not connected to database yet.</p>
+      </Card>
+    )
+  }
 
   return (
     <Card>
@@ -39,7 +50,7 @@ function FundMeCampaignCard({ campaign }) {
               strokeLinecap="round"
             />
             <text x="48" y="53" textAnchor="middle" className="fill-slate-800 text-lg font-bold">
-              62%
+              {Math.round(progress)}%
             </text>
           </svg>
         </div>

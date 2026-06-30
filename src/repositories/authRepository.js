@@ -14,7 +14,7 @@ function getToken(payload) {
 }
 
 function getUser(payload) {
-  return (
+  const candidate =
     payload?.user ||
     payload?.account ||
     payload?.profile ||
@@ -22,8 +22,36 @@ function getUser(payload) {
     payload?.data?.account ||
     payload?.data?.profile ||
     payload?.data ||
+    payload ||
     null
-  )
+
+  return candidate && typeof candidate === 'object' ? candidate : null
+}
+
+function normalizeProfileUser(payload) {
+  const source = getUser(payload)
+  if (!source) {
+    return null
+  }
+
+  return {
+    id: source.id ?? source.user_id ?? null,
+    user_id: source.user_id ?? source.id ?? null,
+    first_name: source.first_name ?? source.firstName ?? '',
+    last_name: source.last_name ?? source.lastName ?? '',
+    firstName: source.firstName ?? source.first_name ?? '',
+    lastName: source.lastName ?? source.last_name ?? '',
+    business_name: source.business_name ?? source.businessName ?? '',
+    businessName: source.businessName ?? source.business_name ?? '',
+    email: source.email ?? null,
+    avatar_url: source.avatar_url ?? source.avatarUrl ?? source.photoUrl ?? null,
+    avatarUrl: source.avatarUrl ?? source.avatar_url ?? source.photoUrl ?? null,
+    photoUrl: source.photoUrl ?? source.avatar_url ?? source.avatarUrl ?? null,
+    title: source.title ?? null,
+    phone: source.phone ?? null,
+    industry: source.industry ?? null,
+    location: source.location ?? null,
+  }
 }
 
 function normalizeSession(payload) {
@@ -56,8 +84,13 @@ export const authRepository = {
   },
 
   async getProfile(token) {
-    const payload = await httpClient.get(apiEndpoints.users.me, { token })
-    return getUser(payload)
+    const payload = await httpClient.get(apiEndpoints.profile.me, { token })
+    return normalizeProfileUser(payload)
+  },
+
+  async refreshSession(token) {
+    const payload = await httpClient.post(apiEndpoints.auth.refresh, undefined, { token })
+    return normalizeSession(payload)
   },
 
   async logout(token) {

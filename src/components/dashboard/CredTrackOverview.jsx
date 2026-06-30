@@ -1,11 +1,12 @@
 import Card from '../common/Card'
-import { credTrackChecklist } from '../../data/dashboardData'
 
-function CredTrackOverview() {
-  const score = 82
+function CredTrackOverview({ overview }) {
+  const score = overview?.score != null ? Number(overview.score) : null
+  const scoreLabel = overview?.label || 'Not connected'
+  const checklist = Array.isArray(overview?.checklist) ? overview.checklist : []
   const radius = 50
   const circumference = 2 * Math.PI * radius
-  const stroke = circumference * ((100 - score) / 100)
+  const stroke = circumference * ((100 - (score || 0)) / 100)
 
   return (
     <Card className="border-none bg-gradient-to-br from-[#05194d] via-[#072160] to-[#06265f] text-white shadow-2xl shadow-blue-950/35">
@@ -35,25 +36,30 @@ function CredTrackOverview() {
             strokeLinecap="round"
           />
           <text x="62" y="59" textAnchor="middle" className="fill-white text-[28px] font-bold">
-            82
+            {score != null ? Math.round(score) : '--'}
           </text>
           <text x="62" y="77" textAnchor="middle" className="fill-blue-100 text-[11px] font-semibold">
-            Excellent
+            {scoreLabel}
           </text>
         </svg>
         <div>
           <p className="text-lg font-semibold text-blue-50">Funding Readiness Score</p>
           <p className="mt-1 text-sm text-blue-100">
-            You&apos;re in great shape! Keep building credit and strengthen your profile.
+            {score == null
+              ? 'CredTrack overview is not connected to database yet.'
+              : 'Your score is calculated from your current CredTrack profile.'}
           </p>
         </div>
       </div>
 
       <div className="mt-4 space-y-2">
-        {credTrackChecklist.map((item) => (
+        {checklist.length === 0 ? (
+          <p className="text-sm text-blue-100">Checklist is not connected to database yet.</p>
+        ) : null}
+        {checklist.map((item) => (
           <div key={item.label} className="flex items-center justify-between text-sm">
             <span className="text-blue-100">{item.label}</span>
-            <span className="font-semibold text-cyan-200">{item.value}%</span>
+            <span className="font-semibold text-cyan-200">{item.value}</span>
           </div>
         ))}
       </div>

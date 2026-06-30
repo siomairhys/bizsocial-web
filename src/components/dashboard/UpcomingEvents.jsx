@@ -1,10 +1,9 @@
 import AvatarPlaceholder from '../common/AvatarPlaceholder'
 import Card from '../common/Card'
-import { upcomingEvents } from '../../data/dashboardData'
 import { DynamicIcon } from '../common/icons'
 
 function UpcomingEvents({ events }) {
-  const items = Array.isArray(events) && events.length > 0 ? events : upcomingEvents
+  const items = Array.isArray(events) ? events : []
 
   return (
     <Card>
@@ -23,6 +22,9 @@ function UpcomingEvents({ events }) {
         </button>
       </div>
       <div className="space-y-3">
+        {items.length === 0 ? (
+          <p className="text-sm text-slate-500">Upcoming events are not connected to database yet.</p>
+        ) : null}
         {items.map((event) => (
           <article key={`${event.month}-${event.day}-${event.title}`} className="rounded-xl border border-slate-200 p-3">
             <div className="grid gap-3 sm:grid-cols-[56px_1fr_auto] sm:items-start">

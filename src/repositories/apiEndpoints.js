@@ -2,6 +2,7 @@ export const apiEndpoints = Object.freeze({
   auth: Object.freeze({
     login: '/auth/login',
     signup: '/auth/register',
+    refresh: '/auth/refresh',
     firebaseToken: '/auth/firebase-token',
   }),
   users: Object.freeze({

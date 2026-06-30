@@ -1,24 +1,14 @@
 import Card from '../common/Card'
 import PlaceholderImage from '../common/PlaceholderImage'
 
-const sponsorColumns = [
-  {
-    title: 'Fundable Futures',
-    items: ['Logo', 'Logo'],
-  },
-  {
-    title: 'Co-Title Sponsor',
-    items: ['Logo', 'Logo'],
-  },
-  {
-    title: 'Platinum Sponsor',
-    items: ['Logo', 'Logo', 'Logo'],
-  },
-]
+function SponsorStrip({ sponsors }) {
+  const sponsorColumns = Array.isArray(sponsors) ? sponsors : []
 
-function SponsorStrip() {
   return (
     <Card className="p-3 sm:p-4">
+      {sponsorColumns.length === 0 ? (
+        <p className="text-sm text-slate-500">Sponsor strip is not connected to database yet.</p>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {sponsorColumns.map((group) => (
           <div key={group.title}>

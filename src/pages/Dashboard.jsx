@@ -52,26 +52,26 @@ function Dashboard() {
     <div className="grid gap-4 xl:grid-cols-[minmax(0,72%)_minmax(0,28%)] 2xl:grid-cols-[minmax(0,70%)_minmax(0,30%)]">
       <div className="min-w-0 space-y-4">
         <WelcomeBanner user={user} />
-        <SponsorStrip />
+        <SponsorStrip sponsors={overviewData?.sponsors} />
         <MetricsGrid metrics={overviewData?.metrics} />
         <div className="grid gap-4 2xl:grid-cols-2">
           <FundMeCampaignCard campaign={overviewData?.campaignSummary} />
-          <BizQuestChallengeCard />
+          <BizQuestChallengeCard challenge={overviewData?.challenge} />
         </div>
         <div className="grid gap-4 2xl:grid-cols-2">
           <div className="space-y-4">
             <RecentActivity activities={overviewData?.recentActivity} />
-            <TopGroups />
+            <TopGroups groups={overviewData?.topGroups} />
           </div>
           <div className="space-y-4">
-            <LearningHub />
-            <MarketplaceSpotlight />
+            <LearningHub courses={overviewData?.learningCourses} />
+            <MarketplaceSpotlight products={overviewData?.marketplaceProducts} />
           </div>
         </div>
       </div>
 
       <div className="min-w-0 space-y-4 xl:self-start">
-        <CredTrackOverview />
+        <CredTrackOverview overview={overviewData?.credTrack} />
         <BalanceSummaryCards summary={overviewData?.balanceSummary} />
         <UpcomingEvents events={overviewData?.upcomingEvents} />
         <MessagePreview messages={overviewData?.messages} />

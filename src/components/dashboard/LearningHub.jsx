@@ -1,15 +1,19 @@
 import Card from '../common/Card'
 import PlaceholderImage from '../common/PlaceholderImage'
 import SectionHeader from '../common/SectionHeader'
-import { courses } from '../../data/dashboardData'
 import { DynamicIcon } from '../common/icons'
 
-function LearningHub() {
+function LearningHub({ courses }) {
+  const items = Array.isArray(courses) ? courses : []
+
   return (
     <Card>
       <SectionHeader title="Learning Hub" action="View All" />
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-        {courses.map((course) => (
+        {items.length === 0 ? (
+          <p className="sm:col-span-2 xl:col-span-3 text-sm text-slate-500">Learning Hub is not connected to database yet.</p>
+        ) : null}
+        {items.map((course) => (
           <article key={course.title} className="rounded-xl border border-slate-200 p-2">
             <div className="relative">
               <PlaceholderImage label="Thumb" variant="thumbnail" className="h-20 w-full" />

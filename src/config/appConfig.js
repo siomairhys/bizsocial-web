@@ -1,11 +1,17 @@
 const trimTrailingSlash = (value) => String(value || '').replace(/\/+$/, '')
 
-const fallbackDomain =
-  typeof window !== 'undefined' && window.location?.origin ? window.location.origin : ''
+function getRequiredEnv(name) {
+  const value = import.meta.env[name]
+  if (!value || !String(value).trim()) {
+    throw new Error(`Missing required frontend env: ${name}`)
+  }
+
+  return String(value).trim()
+}
 
 export const appConfig = {
-  appDomain: trimTrailingSlash(import.meta.env.VITE_APP_DOMAIN || fallbackDomain),
-  apiBaseUrl: trimTrailingSlash(import.meta.env.VITE_API_BASE_URL || '/api/v1'),
+  appDomain: trimTrailingSlash(getRequiredEnv('VITE_APP_DOMAIN')),
+  apiBaseUrl: trimTrailingSlash(getRequiredEnv('VITE_API_BASE_URL')),
 }
 
 export function buildApiUrl(endpoint) {

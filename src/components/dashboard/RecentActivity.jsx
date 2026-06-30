@@ -1,18 +1,20 @@
 import Card from '../common/Card'
 import SectionHeader from '../common/SectionHeader'
-import { recentActivities } from '../../data/dashboardData'
 import { DynamicIcon } from '../common/icons'
 
 const RECENT_ACTIVITY_LIMIT = 5
 
 function RecentActivity({ activities }) {
-  const sourceItems = Array.isArray(activities) && activities.length > 0 ? activities : recentActivities
+  const sourceItems = Array.isArray(activities) ? activities : []
   const items = sourceItems.slice(0, RECENT_ACTIVITY_LIMIT)
 
   return (
     <Card>
       <SectionHeader title="Recent Activity" action="View All" />
       <div className="space-y-2">
+        {items.length === 0 ? (
+          <p className="px-2 py-2 text-sm text-slate-500">Recent activity is not connected to database yet.</p>
+        ) : null}
         {items.map((activity) => (
           <div
             key={activity.key || activity.text}
