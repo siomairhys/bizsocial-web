@@ -96,6 +96,7 @@ function FeedPage() {
   const { token, user } = useAuth()
   const mediaUpload = useMediaUpload(token)
   const mediaInputRef = useRef(null)
+  const composerInputRef = useRef(null)
   const [activeTab, setActiveTab] = useState('for_you')
   const [posts, setPosts] = useState([])
   const [trendingTopics, setTrendingTopics] = useState([])
@@ -223,7 +224,13 @@ function FeedPage() {
 
   async function handleCreatePost() {
     const nextContent = composerText.trim()
-    if (!nextContent || !token || isCreatingPost || mediaUpload.isUploading) {
+    if (!token || isCreatingPost || mediaUpload.isUploading) {
+      return
+    }
+
+    if (!nextContent) {
+      setFeedError('Write something before posting.')
+      composerInputRef.current?.focus()
       return
     }
 
@@ -290,7 +297,7 @@ function FeedPage() {
             <button
               type="button"
               onClick={handleCreatePost}
-              disabled={isCreatingPost || mediaUpload.isUploading || !composerText.trim()}
+              disabled={isCreatingPost || mediaUpload.isUploading}
               className="inline-flex h-10 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-blue-300"
             >
               {isCreatingPost ? 'Posting...' : '+ Create Post'}
@@ -311,6 +318,7 @@ function FeedPage() {
                   aria-hidden="true"
                 />
                 <input
+                  ref={composerInputRef}
                   id="feed-composer"
                   type="text"
                   value={composerText}

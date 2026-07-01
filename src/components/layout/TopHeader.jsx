@@ -5,11 +5,12 @@ import StatusBadge from '../common/StatusBadge'
 import { DynamicIcon } from '../common/icons'
 
 const createItems = [
-  'Create Post',
-  'Create Pitch',
-  'Start Fundraiser',
-  'Create Event',
-  'Add Marketplace Item',
+  { label: 'Create Post', route: '/create-post', icon: 'Newspaper' },
+  { label: 'Create Pitch Reel', route: '/create-pitch-reel', icon: 'Play' },
+  { label: 'Start FundMe Campaign', route: '/fundme', icon: 'HandCoins' },
+  { label: 'Create Event', route: '/events', icon: 'CalendarDays' },
+  { label: 'List Product or Service', route: '/marketplace', icon: 'Store' },
+  { label: 'Create Group', route: '/groups', icon: 'Users' },
 ]
 
 const accountMenuItems = [
@@ -78,6 +79,11 @@ function TopHeader({ onMenuClick, user, currentRoute, onNavigate, onSignOut }) {
     onNavigate(route)
   }
 
+  function handleCreateNavigate(route) {
+    setCreateOpen(false)
+    onNavigate(route)
+  }
+
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
       <div className="flex h-[70px] w-full items-center gap-3 px-4 sm:px-5 xl:px-6">
@@ -131,12 +137,16 @@ function TopHeader({ onMenuClick, user, currentRoute, onNavigate, onSignOut }) {
               <div className="absolute right-0 top-12 z-40 w-56 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white p-2 shadow-xl" role="menu">
                 {createItems.map((item) => (
                   <button
-                    key={item}
+                    key={item.label}
                     type="button"
+                    onClick={() => handleCreateNavigate(item.route)}
                     className="block min-h-10 w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     role="menuitem"
                   >
-                    {item}
+                    <span className="flex items-center gap-2.5">
+                      <DynamicIcon name={item.icon} className="h-4 w-4" aria-hidden="true" />
+                      {item.label}
+                    </span>
                   </button>
                 ))}
               </div>

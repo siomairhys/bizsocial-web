@@ -33,8 +33,15 @@ export const apiEndpoints = Object.freeze({
     list: '/feed',
     trendingTopics: '/feed/topics/trending',
   }),
+  pitchReels: Object.freeze({
+    list: '/pitch-reels',
+    create: '/pitch-reels',
+    draftMe: '/pitch-reels/draft/me',
+    byId: (pitchReelId) => `/pitch-reels/${pitchReelId}`,
+  }),
   posts: Object.freeze({
     create: '/posts',
+    draftMe: '/posts/draft/me',
     byId: (postId) => `/posts/${postId}`,
     react: (postId) => `/posts/${postId}/reactions`,
     comments: (postId) => `/posts/${postId}/comments`,

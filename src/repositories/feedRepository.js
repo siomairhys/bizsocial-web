@@ -18,6 +18,18 @@ export const feedRepository = {
     return httpClient.post(apiEndpoints.posts.create, payload, { token })
   },
 
+  getMyDraft(token) {
+    return httpClient.get(apiEndpoints.posts.draftMe, { token })
+  },
+
+  saveMyDraft(token, payload) {
+    return httpClient.put(apiEndpoints.posts.draftMe, payload, { token })
+  },
+
+  deleteMyDraft(token) {
+    return httpClient.delete(apiEndpoints.posts.draftMe, { token })
+  },
+
   toggleReaction(token, postId, reactionType = 'like') {
     return httpClient.post(
       apiEndpoints.posts.react(postId),

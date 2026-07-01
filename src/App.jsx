@@ -5,23 +5,18 @@ import { useAuth } from './modules/auth/context/useAuth'
 import LoginPage from './modules/auth/pages/LoginPage'
 import SignupPage from './modules/auth/pages/SignupPage'
 import AccountSettingsPage from './pages/AccountSettingsPage'
+import CreatePitchReelPage from './pages/CreatePitchReelPage'
+import CreatePostPage from './pages/CreatePostPage'
 import Dashboard from './pages/Dashboard'
 import FeatureActionPage from './pages/FeatureActionPage'
 import FeedPage from './pages/FeedPage'
+import PitchReelsPage from './pages/PitchReelsPage'
 import ProfilePage from './pages/ProfilePage'
 
 const authRoutes = ['/login', '/signup']
 const dashboardRoute = '/dashboard'
 
 const featureRoutes = {
-  '/pitch-reels': {
-    eyebrow: 'Pitch Reels',
-    title: 'Create Pitch',
-    description: 'Build a short business pitch that can be published to your BizSocials profile and discovered by members, partners, and potential supporters.',
-    icon: 'Play',
-    primaryAction: 'Start pitch draft',
-    checklist: ['Pitch title', 'Short description', 'Video or media upload', 'Visibility setting'],
-  },
   '/fundme': {
     eyebrow: 'FundMe',
     title: 'Start Fundraiser',
@@ -37,6 +32,30 @@ const featureRoutes = {
     icon: 'Trophy',
     primaryAction: 'View challenge details',
     checklist: ['Challenge selection', 'Eligibility details', 'Submission requirements', 'Progress tracking'],
+  },
+  '/events': {
+    eyebrow: 'Events',
+    title: 'Create Event',
+    description: 'Set up an event for the BizSocials community, define the schedule, and manage registrations.',
+    icon: 'CalendarDays',
+    primaryAction: 'Start event draft',
+    checklist: ['Event title', 'Date and time', 'Location or virtual link', 'Audience and RSVP settings'],
+  },
+  '/marketplace': {
+    eyebrow: 'Marketplace',
+    title: 'List Product or Service',
+    description: 'Create a marketplace listing with pricing, media, and business details for discovery by members.',
+    icon: 'Store',
+    primaryAction: 'Create listing draft',
+    checklist: ['Listing title', 'Price and category', 'Description and media', 'Delivery or service details'],
+  },
+  '/groups': {
+    eyebrow: 'Groups',
+    title: 'Create Group',
+    description: 'Launch a focused community group around your business niche, audience, or shared goals.',
+    icon: 'Users',
+    primaryAction: 'Create group draft',
+    checklist: ['Group name', 'Purpose and guidelines', 'Privacy and membership settings', 'Initial welcome post'],
   },
 }
 
@@ -86,6 +105,18 @@ function AppContent() {
   function renderAuthenticatedRoute() {
     if (route === '/feed') {
       return <FeedPage />
+    }
+
+    if (route === '/pitch-reels') {
+      return <PitchReelsPage onNavigate={navigateTo} />
+    }
+
+    if (route === '/create-pitch-reel') {
+      return <CreatePitchReelPage onNavigate={navigateTo} />
+    }
+
+    if (route === '/create-post') {
+      return <CreatePostPage onNavigate={navigateTo} />
     }
 
     if (route === '/profile') {
