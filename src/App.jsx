@@ -8,56 +8,41 @@ import AccountSettingsPage from './pages/AccountSettingsPage'
 import CreatePitchReelPage from './pages/CreatePitchReelPage'
 import CreatePostPage from './pages/CreatePostPage'
 import Dashboard from './pages/Dashboard'
-import FeatureActionPage from './pages/FeatureActionPage'
 import FeedPage from './pages/FeedPage'
+import FundMeCampaignDetailPage from './pages/FundMeCampaignDetailPage'
+import FundMePage from './pages/FundMePage'
+import LivePitchesPage from './pages/LivePitchesPage'
+import LivePitchSessionPage from './pages/LivePitchSessionPage'
+import {
+  AnalyticsPage,
+  BizBucksWalletPage,
+  BizCardProfilePage,
+  BizQuestChallengeDetailPage,
+  BuyBizBucksPage,
+  ChatThreadPage,
+  CoursePlayerPage,
+  CreateEventPage,
+  CreateFundMeCampaignPage,
+  CreateGroupPage,
+  CreateMarketplaceListingPage,
+  CredTrackActionPlanPage,
+  CredTrackOverviewPage,
+  EventDetailPage,
+  EventsDirectoryPage,
+  GroupDetailPage,
+  GroupsDirectoryPage,
+  LearningHubPage,
+  MarketplaceListingDetailPage,
+  MarketplacePage,
+  MessagesPage,
+  SettingsPage,
+  SponsorImpactPage,
+} from './pages/ModulePages'
 import PitchReelsPage from './pages/PitchReelsPage'
 import ProfilePage from './pages/ProfilePage'
 
 const authRoutes = ['/login', '/signup']
 const dashboardRoute = '/dashboard'
-
-const featureRoutes = {
-  '/fundme': {
-    eyebrow: 'FundMe',
-    title: 'Start Fundraiser',
-    description: 'Prepare a campaign page for capital goals, business needs, contribution details, and supporter updates.',
-    icon: 'CircleDollarSign',
-    primaryAction: 'Start fundraiser draft',
-    checklist: ['Funding goal', 'Campaign story', 'Use of funds', 'Supporter updates'],
-  },
-  '/bizquest-challenge': {
-    eyebrow: 'BizQuest',
-    title: 'Join Challenge',
-    description: 'Enter a business growth challenge, track progress, and compete for visibility, rewards, and community support.',
-    icon: 'Trophy',
-    primaryAction: 'View challenge details',
-    checklist: ['Challenge selection', 'Eligibility details', 'Submission requirements', 'Progress tracking'],
-  },
-  '/events': {
-    eyebrow: 'Events',
-    title: 'Create Event',
-    description: 'Set up an event for the BizSocials community, define the schedule, and manage registrations.',
-    icon: 'CalendarDays',
-    primaryAction: 'Start event draft',
-    checklist: ['Event title', 'Date and time', 'Location or virtual link', 'Audience and RSVP settings'],
-  },
-  '/marketplace': {
-    eyebrow: 'Marketplace',
-    title: 'List Product or Service',
-    description: 'Create a marketplace listing with pricing, media, and business details for discovery by members.',
-    icon: 'Store',
-    primaryAction: 'Create listing draft',
-    checklist: ['Listing title', 'Price and category', 'Description and media', 'Delivery or service details'],
-  },
-  '/groups': {
-    eyebrow: 'Groups',
-    title: 'Create Group',
-    description: 'Launch a focused community group around your business niche, audience, or shared goals.',
-    icon: 'Users',
-    primaryAction: 'Create group draft',
-    checklist: ['Group name', 'Purpose and guidelines', 'Privacy and membership settings', 'Initial welcome post'],
-  },
-}
 
 function getCurrentRoute() {
   const hashRoute = window.location.hash.replace('#', '')
@@ -111,6 +96,106 @@ function AppContent() {
       return <PitchReelsPage onNavigate={navigateTo} />
     }
 
+    if (route === '/live-pitches') {
+      return <LivePitchesPage onNavigate={navigateTo} />
+    }
+
+    if (route === '/fundme') {
+      return <FundMePage onNavigate={navigateTo} />
+    }
+
+    if (route === '/fundme/create') {
+      return <CreateFundMeCampaignPage />
+    }
+
+    if (route.startsWith('/fundme/campaign/')) {
+      return <FundMeCampaignDetailPage />
+    }
+
+    if (route === '/bizbucks') {
+      return <BizBucksWalletPage onNavigate={navigateTo} />
+    }
+
+    if (route === '/bizbucks/buy') {
+      return <BuyBizBucksPage />
+    }
+
+    if (route === '/credtrack') {
+      return <CredTrackOverviewPage onNavigate={navigateTo} />
+    }
+
+    if (route === '/credtrack/action-plan') {
+      return <CredTrackActionPlanPage />
+    }
+
+    if (route === '/groups') {
+      return <GroupsDirectoryPage onNavigate={navigateTo} />
+    }
+
+    if (route === '/groups/create') {
+      return <CreateGroupPage />
+    }
+
+    if (route.startsWith('/groups/')) {
+      return <GroupDetailPage />
+    }
+
+    if (route === '/events') {
+      return <EventsDirectoryPage onNavigate={navigateTo} />
+    }
+
+    if (route === '/events/create') {
+      return <CreateEventPage />
+    }
+
+    if (route.startsWith('/events/')) {
+      return <EventDetailPage />
+    }
+
+    if (route === '/courses') {
+      return <LearningHubPage onNavigate={navigateTo} />
+    }
+
+    if (route.startsWith('/courses/')) {
+      return <CoursePlayerPage />
+    }
+
+    if (route === '/marketplace') {
+      return <MarketplacePage onNavigate={navigateTo} />
+    }
+
+    if (route === '/marketplace/create') {
+      return <CreateMarketplaceListingPage />
+    }
+
+    if (route.startsWith('/marketplace/')) {
+      return <MarketplaceListingDetailPage />
+    }
+
+    if (route === '/messages') {
+      return <MessagesPage onNavigate={navigateTo} />
+    }
+
+    if (route.startsWith('/messages/')) {
+      return <ChatThreadPage />
+    }
+
+    if (route === '/analytics') {
+      return <AnalyticsPage />
+    }
+
+    if (route === '/bizquest-challenge') {
+      return <BizQuestChallengeDetailPage />
+    }
+
+    if (route === '/sponsor-impact') {
+      return <SponsorImpactPage />
+    }
+
+    if (route.startsWith('/live-pitches/session/')) {
+      return <LivePitchSessionPage />
+    }
+
     if (route === '/create-pitch-reel') {
       return <CreatePitchReelPage onNavigate={navigateTo} />
     }
@@ -120,15 +205,19 @@ function AppContent() {
     }
 
     if (route === '/profile') {
+      return <BizCardProfilePage />
+    }
+
+    if (route === '/profile/edit') {
       return <ProfilePage user={user} />
     }
 
     if (route === '/settings') {
-      return <AccountSettingsPage user={user} />
+      return <SettingsPage />
     }
 
-    if (featureRoutes[route]) {
-      return <FeatureActionPage {...featureRoutes[route]} />
+    if (route === '/settings/account') {
+      return <AccountSettingsPage user={user} />
     }
 
     return <Dashboard />

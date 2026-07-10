@@ -8,11 +8,28 @@ function getNavRoute(item) {
     dashboard: '/dashboard',
     feed: '/feed',
     pitchReels: '/pitch-reels',
+    livePitches: '/live-pitches',
     fundme: '/fundme',
+    bizbucks: '/bizbucks',
+    credtrack: '/credtrack',
+    groups: '/groups',
+    events: '/events',
+    courses: '/courses',
+    marketplace: '/marketplace',
+    messages: '/messages',
+    analytics: '/analytics',
     settings: '/settings',
   }
 
   return routes[item.key] || null
+}
+
+function isRouteActive(route, currentRoute) {
+  if (!route) {
+    return false
+  }
+
+  return currentRoute === route || currentRoute.startsWith(`${route}/`)
 }
 
 function Sidebar({ mobile = false, onClose, currentRoute = '/dashboard', onNavigate }) {
@@ -62,7 +79,7 @@ function Sidebar({ mobile = false, onClose, currentRoute = '/dashboard', onNavig
         <nav aria-label="Primary navigation" className="space-y-1">
           {navItems.map((item) => {
             const route = getNavRoute(item)
-            const isActive = route === currentRoute
+            const isActive = isRouteActive(route, currentRoute)
 
             return (
               <a
@@ -106,5 +123,4 @@ function Sidebar({ mobile = false, onClose, currentRoute = '/dashboard', onNavig
 }
 
 export default Sidebar
-
 

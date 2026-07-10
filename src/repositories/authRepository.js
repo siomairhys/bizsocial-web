@@ -1,5 +1,6 @@
-import { httpClient } from '../services/httpClient'
 import { apiEndpoints } from './apiEndpoints'
+import { httpClient } from '../services/httpClient'
+import { DEFAULT_ACCOUNT_TOKEN, defaultAccount } from '../data/defaultSeedData'
 
 function getToken(payload) {
   return (
@@ -76,6 +77,14 @@ export const authRepository = {
   async login(credentials) {
     const payload = await httpClient.post(apiEndpoints.auth.login, credentials)
     return normalizeSession(payload)
+  },
+
+  async loginDefault() {
+    return {
+      token: DEFAULT_ACCOUNT_TOKEN,
+      user: defaultAccount,
+      raw: { source: 'static', account: 'default' },
+    }
   },
 
   async signup(account) {

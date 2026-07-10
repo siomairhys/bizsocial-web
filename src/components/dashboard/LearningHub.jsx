@@ -16,7 +16,11 @@ function LearningHub({ courses }) {
         {items.map((course) => (
           <article key={course.title} className="rounded-xl border border-slate-200 p-2">
             <div className="relative">
-              <PlaceholderImage label="Thumb" variant="thumbnail" className="h-20 w-full" />
+              {course.imageUrl ? (
+                <img src={course.imageUrl} alt="" className="h-20 w-full rounded-lg object-cover" loading="lazy" />
+              ) : (
+                <PlaceholderImage label="Thumb" variant="thumbnail" className="h-20 w-full" />
+              )}
               <span className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/85 text-slate-700">
                 <DynamicIcon name="Play" className="h-3 w-3" aria-hidden="true" />
               </span>

@@ -21,11 +21,20 @@ function BizQuestChallengeCard({ challenge }) {
       </div>
 
       <div className="mt-3 grid gap-4 sm:grid-cols-[96px_1fr]">
-        <PlaceholderImage
-          label="Graphic"
-          variant="square"
-          className="h-24 w-24 border-blue-300/30 from-blue-200/30 to-blue-100/10"
-        />
+        {challenge.imageUrl ? (
+          <img
+            src={challenge.imageUrl}
+            alt=""
+            className="h-24 w-24 rounded-xl border border-blue-300/30 object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <PlaceholderImage
+            label="Graphic"
+            variant="square"
+            className="h-24 w-24 border-blue-300/30 from-blue-200/30 to-blue-100/10"
+          />
+        )}
         <div>
           <p className="text-xs uppercase tracking-[0.14em] text-blue-200">{challenge.period || 'Challenge'}</p>
           <h3 className="mt-1 text-xl font-bold">{challenge.title || 'BizQuest'}</h3>

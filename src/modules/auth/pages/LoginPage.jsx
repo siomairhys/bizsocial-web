@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowRight, LockKeyhole, Mail } from 'lucide-react'
+import { ArrowRight, LockKeyhole, Mail, UserRound } from 'lucide-react'
 import AuthLayout from '../components/AuthLayout'
 import AuthTextField from '../components/AuthTextField'
 import { useAuth } from '../context/useAuth'
@@ -24,11 +24,12 @@ function validate(values) {
 }
 
 function LoginPage({ onAuthenticated }) {
-  const { signIn } = useAuth()
+  const { signIn, signInDefault } = useAuth()
   const [values, setValues] = useState(initialValues)
   const [errors, setErrors] = useState({})
   const [formError, setFormError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSigningInDefault, setIsSigningInDefault] = useState(false)
 
   function updateField(field, value) {
     setValues((current) => ({ ...current, [field]: value }))
@@ -58,6 +59,21 @@ function LoginPage({ onAuthenticated }) {
       setFormError(error.message || 'Unable to sign in. Check your credentials and try again.')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  async function handleDefaultSignIn() {
+    setErrors({})
+    setFormError('')
+    setIsSigningInDefault(true)
+
+    try {
+      await signInDefault()
+      onAuthenticated()
+    } catch (error) {
+      setFormError(error.message || 'Unable to sign in to the default account.')
+    } finally {
+      setIsSigningInDefault(false)
     }
   }
 
@@ -103,11 +119,21 @@ function LoginPage({ onAuthenticated }) {
 
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || isSigningInDefault}
           className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-blue-300"
         >
           {isSubmitting ? 'Signing in...' : 'Sign in'}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </button>
+
+        <button
+          type="button"
+          onClick={handleDefaultSignIn}
+          disabled={isSubmitting || isSigningInDefault}
+          className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <UserRound className="h-4 w-4" aria-hidden="true" />
+          {isSigningInDefault ? 'Signing in default account...' : 'Sign in to the default account'}
         </button>
       </form>
 

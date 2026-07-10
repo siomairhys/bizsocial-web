@@ -30,7 +30,6 @@ function PitchReelsPage({ onNavigate }) {
   const [items, setItems] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
-  const [endpoint, setEndpoint] = useState('')
 
   useEffect(() => {
     let active = true
@@ -46,7 +45,6 @@ function PitchReelsPage({ onNavigate }) {
         }
 
         setItems(Array.isArray(payload?.items) ? payload.items : [])
-        setEndpoint(String(payload?.endpoint || ''))
       } catch {
         if (!active) {
           return
@@ -103,10 +101,6 @@ function PitchReelsPage({ onNavigate }) {
           ))}
         </div>
 
-        <div className="mb-4 rounded-xl border border-dashed border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700">
-          API placeholder ready: {endpoint || '/pitch-reels'}
-        </div>
-
         {error ? <p className="mb-3 text-sm font-semibold text-red-600">{error}</p> : null}
 
         {isLoading ? (
@@ -118,7 +112,17 @@ function PitchReelsPage({ onNavigate }) {
                 key={item.id}
                 className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-900 shadow-sm"
               >
-                <div className={`h-64 bg-gradient-to-b ${item.gradient}`} />
+                <div className={`relative h-64 bg-gradient-to-b ${item.gradient}`}>
+                  {item.coverImageUrl ? (
+                    <img
+                      src={item.coverImageUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : null}
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent" />
+                </div>
                 <div className="space-y-3 bg-slate-950 p-3.5 text-white">
                   <div className="flex items-center gap-2 text-xs text-slate-200">
                     <div className="grid h-7 w-7 place-items-center rounded-full bg-slate-300 font-semibold text-slate-700">

@@ -1,5 +1,6 @@
 import { apiEndpoints } from './apiEndpoints'
 import { httpClient } from '../services/httpClient'
+import { defaultDashboardOverview } from '../data/defaultSeedData'
 
 function numberWithCommas(value) {
   return Number(value || 0).toLocaleString()
@@ -170,7 +171,15 @@ function mapOverview(payload) {
 
 export const dashboardRepository = {
   async getOverview(token) {
-    const payload = await httpClient.get(apiEndpoints.dashboard.overview, { token })
-    return mapOverview(payload)
+    if (!token) {
+      return defaultDashboardOverview
+    }
+
+    try {
+      const payload = await httpClient.get(apiEndpoints.dashboard.overview, { token })
+      return mapOverview(payload)
+    } catch {
+      return defaultDashboardOverview
+    }
   },
 }

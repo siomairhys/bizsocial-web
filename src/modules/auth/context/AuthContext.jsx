@@ -147,6 +147,11 @@ export function AuthProvider({ children }) {
     [persistSession],
   )
 
+  const signInDefault = useCallback(async () => {
+    const authResult = await authRepository.loginDefault()
+    return persistSession(createSession(authResult, authResult?.user || null))
+  }, [persistSession])
+
   const signUp = useCallback(
     async (account) => {
       const authResult = await authRepository.signup(account)
@@ -313,10 +318,11 @@ export function AuthProvider({ children }) {
       sessionExpiresAt: session?.expiresAt || null,
       isAuthenticated: Boolean(session?.token || session?.user),
       signIn,
+      signInDefault,
       signUp,
       signOut,
     }),
-    [session, signIn, signOut, signUp],
+    [session, signIn, signInDefault, signOut, signUp],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

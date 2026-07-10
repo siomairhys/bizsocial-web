@@ -7,10 +7,10 @@ import { DynamicIcon } from '../common/icons'
 const createItems = [
   { label: 'Create Post', route: '/create-post', icon: 'Newspaper' },
   { label: 'Create Pitch Reel', route: '/create-pitch-reel', icon: 'Play' },
-  { label: 'Start FundMe Campaign', route: '/fundme', icon: 'HandCoins' },
-  { label: 'Create Event', route: '/events', icon: 'CalendarDays' },
-  { label: 'List Product or Service', route: '/marketplace', icon: 'Store' },
-  { label: 'Create Group', route: '/groups', icon: 'Users' },
+  { label: 'Start FundMe Campaign', route: '/fundme/create', icon: 'HandCoins' },
+  { label: 'Create Event', route: '/events/create', icon: 'CalendarDays' },
+  { label: 'List Product or Service', route: '/marketplace/create', icon: 'Store' },
+  { label: 'Create Group', route: '/groups/create', icon: 'Users' },
 ]
 
 const accountMenuItems = [

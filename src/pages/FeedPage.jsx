@@ -68,6 +68,21 @@ function getPrimaryMedia(post) {
   return Array.isArray(post.media) && post.media.length > 0 ? post.media[0] : null
 }
 
+function getMediaUrl(media) {
+  return media?.url || media?.media_url || media?.thumbnail_url || media?.file_url || ''
+}
+
+function getUserInitials(user) {
+  const first = String(user?.firstName || user?.first_name || '').trim()
+  const last = String(user?.lastName || user?.last_name || '').trim()
+  const initials = `${first[0] || ''}${last[0] || ''}`.toUpperCase()
+  return initials || 'BS'
+}
+
+function getUserAvatarUrl(user) {
+  return user?.photoUrl || user?.avatarUrl || user?.avatar_url || ''
+}
+
 function formatTopicCount(value) {
   const count = Number(value || 0)
   return `${count.toLocaleString()} posts`
@@ -105,6 +120,7 @@ function FeedPage() {
   const [isCreatingPost, setIsCreatingPost] = useState(false)
   const [isLoadingFeed, setIsLoadingFeed] = useState(false)
   const [feedError, setFeedError] = useState('')
+  const userAvatarUrl = getUserAvatarUrl(user)
 
   const composerPlaceholder = useMemo(() => {
     const firstName = user?.firstName || user?.first_name || 'there'
@@ -306,8 +322,12 @@ function FeedPage() {
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
             <div className="mb-2 flex items-center gap-2.5">
-              <div className="grid h-9 w-9 place-items-center rounded-full bg-teal-100 text-xs font-bold text-teal-700">
-                MH
+              <div className="grid h-9 w-9 place-items-center overflow-hidden rounded-full bg-teal-100 text-xs font-bold text-teal-700">
+                {userAvatarUrl ? (
+                  <img src={userAvatarUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  getUserInitials(user)
+                )}
               </div>
               <label htmlFor="feed-composer" className="sr-only">
                 Share an update
@@ -438,21 +458,30 @@ function FeedPage() {
 
             {getPrimaryMedia(post) ? (
               <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
-                <div className="relative h-44 bg-gradient-to-r from-blue-200 via-blue-400 to-blue-800">
-                  <button
-                    type="button"
-                    className="absolute left-4 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-blue-700 shadow"
-                    aria-label="Play pitch reel"
-                  >
-                    <PlayCircle className="h-5 w-5" aria-hidden="true" />
-                  </button>
-                  <div className="absolute bottom-4 left-4 text-white">
-                    <p className="text-sm font-bold">Media Attachment</p>
-                    <p className="text-xs text-blue-100">
-                      {getPrimaryMedia(post)?.media_type || 'file'}
-                    </p>
+                {getMediaUrl(getPrimaryMedia(post)) ? (
+                  <img
+                    src={getMediaUrl(getPrimaryMedia(post))}
+                    alt={getPrimaryMedia(post)?.alt || 'Post media'}
+                    className="h-64 w-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="relative h-44 bg-gradient-to-r from-blue-200 via-blue-400 to-blue-800">
+                    <button
+                      type="button"
+                      className="absolute left-4 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-blue-700 shadow"
+                      aria-label="Play pitch reel"
+                    >
+                      <PlayCircle className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                    <div className="absolute bottom-4 left-4 text-white">
+                      <p className="text-sm font-bold">Media Attachment</p>
+                      <p className="text-xs text-blue-100">
+                        {getPrimaryMedia(post)?.media_type || 'file'}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             ) : null}
 

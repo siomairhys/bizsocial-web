@@ -1,5 +1,6 @@
 import { apiEndpoints } from './apiEndpoints'
 import { httpClient } from '../services/httpClient'
+import { defaultPitchReels } from '../data/defaultSeedData'
 
 const ENABLE_PITCH_REELS_API =
   (import.meta.env.VITE_ENABLE_PITCH_REELS_API || 'true').toLowerCase() !== 'false'
@@ -9,72 +10,7 @@ export const PITCH_REELS_ENDPOINT_PLACEHOLDER = apiEndpoints.pitchReels.list
 export const PITCH_REELS_DRAFT_ENDPOINT_PLACEHOLDER = apiEndpoints.pitchReels.draftMe
 export const PITCH_REELS_PUBLISH_ENDPOINT_PLACEHOLDER = apiEndpoints.pitchReels.create
 
-const STATIC_PITCH_REELS = [
-  {
-    id: 'reel-1',
-    tab: 'top',
-    author_first_name: 'Alicia',
-    author_last_name: 'Moore',
-    author_business_name: 'AM Studio',
-    title: 'Your brand has a story.',
-    caption: 'My #BizDropChallenge',
-    category: 'Brand Story',
-    visibility: 'public',
-    status: 'active',
-    reactions_count: 1200,
-    comments_count: 94,
-    shares_count: 43,
-    gradient: 'from-[#eac79b] via-[#b6a9a0] to-[#8b8fb4]',
-  },
-  {
-    id: 'reel-2',
-    tab: 'latest',
-    author_first_name: 'Marcus',
-    author_last_name: 'Holloway',
-    author_business_name: 'Holloway Designs LLC',
-    title: 'Design that drives growth.',
-    caption: '60-second business pitch',
-    category: 'Design',
-    visibility: 'public',
-    status: 'active',
-    reactions_count: 1200,
-    comments_count: 94,
-    shares_count: 32,
-    gradient: 'from-[#9fd4e8] via-[#7da8cf] to-[#5c81ba]',
-  },
-  {
-    id: 'reel-3',
-    tab: 'following',
-    author_first_name: 'David',
-    author_last_name: 'Chen',
-    author_business_name: 'OpsFlow Labs',
-    title: 'Workflow tools for teams.',
-    caption: 'Building in public',
-    category: 'SaaS',
-    visibility: 'public',
-    status: 'active',
-    reactions_count: 1200,
-    comments_count: 94,
-    shares_count: 51,
-    gradient: 'from-[#e8b7a1] via-[#b27f95] to-[#7d6f9f]',
-  },
-  {
-    id: 'reel-4',
-    tab: 'fundable',
-    author_first_name: 'Tiffany',
-    author_last_name: 'Grant',
-    author_business_name: 'Grant Luxury',
-    title: 'A premium style experience.',
-    caption: 'Pitch to Win entry',
-    category: 'Retail',
-    visibility: 'public',
-    status: 'active',
-    reactions_count: 1200,
-    comments_count: 94,
-    shares_count: 27,
-    gradient: 'from-[#d8cae8] via-[#a9a4cf] to-[#8a90c6]',
-  },
-]
+const STATIC_PITCH_REELS = defaultPitchReels
 
 function toUniqueTags(values) {
   const seen = new Set()
@@ -125,6 +61,13 @@ function mapPitchReelCard(item) {
     comments: Number(item.comments_count || 0),
     shares: Number(item.shares_count || 0),
     gradient: item.gradient || 'from-[#8db0df] via-[#7c96ca] to-[#6779b4]',
+    coverImageUrl:
+      item.coverImageUrl ||
+      item.cover_image_url ||
+      item.cover_url ||
+      item.thumbnail_url ||
+      item.media_url ||
+      '',
   }
 }
 
@@ -143,11 +86,19 @@ function filterByTab(items, tab) {
 export const pitchReelsRepository = {
   async list(token, { tab = 'top' } = {}) {
     if (ENABLE_PITCH_REELS_API) {
-      const payload = await httpClient.get(`${apiEndpoints.pitchReels.list}?tab=${encodeURIComponent(tab)}`, { token })
-      return {
-        endpoint: PITCH_REELS_ENDPOINT_PLACEHOLDER,
-        source: 'api',
-        items: Array.isArray(payload?.items) ? payload.items.map(mapPitchReelCard) : [],
+      try {
+        const payload = await httpClient.get(`${apiEndpoints.pitchReels.list}?tab=${encodeURIComponent(tab)}`, { token })
+        return {
+          endpoint: PITCH_REELS_ENDPOINT_PLACEHOLDER,
+          source: 'api',
+          items: Array.isArray(payload?.items) ? payload.items.map(mapPitchReelCard) : [],
+        }
+      } catch {
+        return {
+          endpoint: PITCH_REELS_ENDPOINT_PLACEHOLDER,
+          source: 'static',
+          items: filterByTab(STATIC_PITCH_REELS, tab).map(mapPitchReelCard),
+        }
       }
     }
 

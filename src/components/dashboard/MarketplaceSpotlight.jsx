@@ -14,7 +14,11 @@ function MarketplaceSpotlight({ products }) {
         ) : null}
         {items.map((product) => (
           <article key={product.title} className="rounded-xl border border-slate-200 p-2">
-            <PlaceholderImage label="Product" variant="thumbnail" className="h-20 w-full" />
+            {product.imageUrl ? (
+              <img src={product.imageUrl} alt="" className="h-20 w-full rounded-lg object-cover" loading="lazy" />
+            ) : (
+              <PlaceholderImage label="Product" variant="thumbnail" className="h-20 w-full" />
+            )}
             <h4 className="mt-2 text-sm font-semibold text-slate-900">{product.title}</h4>
             <p className="text-xs text-slate-500">{product.seller}</p>
             <p className="mt-1 text-sm font-bold text-blue-700">{product.price}</p>
