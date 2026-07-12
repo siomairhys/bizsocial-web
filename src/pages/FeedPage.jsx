@@ -6,10 +6,10 @@ import { useMediaUpload } from '../modules/media/hooks/useMediaUpload'
 import { feedRepository } from '../repositories/feedRepository'
 
 const quickComposerActions = [
-  { label: 'Photo / Video', icon: PlayCircle },
-  { label: 'Pitch Reel', icon: PlayCircle },
-  { label: 'Live', icon: Radio },
-  { label: 'Event', icon: CalendarDays },
+  { label: 'Photo / Video', icon: PlayCircle, action: 'media' },
+  { label: 'Pitch Reel', icon: PlayCircle, action: 'navigate', route: '/create-pitch-reel' },
+  { label: 'Live', icon: Radio, action: 'navigate', route: '/live-pitches' },
+  { label: 'Event', icon: CalendarDays, action: 'navigate', route: '/events/create' },
 ]
 
 const feedTabs = [
@@ -68,8 +68,12 @@ function getPrimaryMedia(post) {
   return Array.isArray(post.media) && post.media.length > 0 ? post.media[0] : null
 }
 
+function getAllMedia(post) {
+  return Array.isArray(post.media) ? post.media.filter((m) => getMediaUrl(m)) : []
+}
+
 function getMediaUrl(media) {
-  return media?.url || media?.media_url || media?.thumbnail_url || media?.file_url || ''
+  return media?.url || media?.download_url || media?.media_url || media?.thumbnail_url || media?.file_url || ''
 }
 
 function getUserInitials(user) {
@@ -107,7 +111,7 @@ function SidebarCard({ title, actionLabel, children }) {
   )
 }
 
-function FeedPage() {
+function FeedPage({ onNavigate }) {
   const { token, user } = useAuth()
   const mediaUpload = useMediaUpload(token)
   const mediaInputRef = useRef(null)
@@ -117,9 +121,11 @@ function FeedPage() {
   const [trendingTopics, setTrendingTopics] = useState([])
   const [composerText, setComposerText] = useState('')
   const [attachedMedia, setAttachedMedia] = useState([])
+  const [pendingFiles, setPendingFiles] = useState([]) // files queued/uploading with previews
   const [isCreatingPost, setIsCreatingPost] = useState(false)
   const [isLoadingFeed, setIsLoadingFeed] = useState(false)
   const [feedError, setFeedError] = useState('')
+  const [lightboxUrl, setLightboxUrl] = useState(null)
   const userAvatarUrl = getUserAvatarUrl(user)
 
   const composerPlaceholder = useMemo(() => {
@@ -208,34 +214,87 @@ function FeedPage() {
   }
 
   async function handleMediaSelected(event) {
-    const selectedFile = event.target.files?.[0]
+    const files = Array.from(event.target.files || [])
     event.target.value = ''
 
-    if (!selectedFile || !token) {
+    if (!files.length || !token) {
       return
     }
 
     setFeedError('')
 
-    try {
-      const result = await mediaUpload.upload(selectedFile)
+    // Create local previews immediately
+    const newEntries = files.map((file) => ({
+      localId: `${Date.now()}-${Math.random()}`,
+      file,
+      name: file.name,
+      previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+      status: 'pending', // pending | uploading | done | error
+      mediaId: null,
+      progress: 0,
+      error: '',
+    }))
 
-      setAttachedMedia((current) => [
-        ...current,
-        {
-          mediaId: Number(result.mediaId),
-          name: selectedFile.name,
-          mediaType: result.mediaType,
-        },
-      ])
-    } catch (error) {
-      console.error('Failed to upload composer media:', error)
-      setFeedError(error?.message || 'Unable to upload media right now.')
+    setPendingFiles((current) => [...current, ...newEntries])
+
+    // Upload each file sequentially
+    for (const entry of newEntries) {
+      setPendingFiles((current) =>
+        current.map((f) => (f.localId === entry.localId ? { ...f, status: 'uploading' } : f)),
+      )
+
+      try {
+        const result = await mediaUpload.upload(entry.file)
+        const mediaId = Number(result.mediaId)
+
+        setPendingFiles((current) =>
+          current.map((f) =>
+            f.localId === entry.localId ? { ...f, status: 'done', mediaId, progress: 100 } : f,
+          ),
+        )
+        setAttachedMedia((current) => [
+          ...current,
+          { mediaId, name: entry.name, mediaType: result.mediaType },
+        ])
+      } catch (error) {
+        setPendingFiles((current) =>
+          current.map((f) =>
+            f.localId === entry.localId
+              ? { ...f, status: 'error', error: error?.message || 'Upload failed.' }
+              : f,
+          ),
+        )
+      }
     }
+  }
+
+  function removePendingFile(localId) {
+    setPendingFiles((current) => {
+      const removed = current.find((f) => f.localId === localId)
+      if (removed?.previewUrl) {
+        URL.revokeObjectURL(removed.previewUrl)
+      }
+      return current.filter((f) => f.localId !== localId)
+    })
+    // Also drop from attached if it was already uploaded
+    setPendingFiles((current) => {
+      const toRemove = current.find((f) => f.localId === localId)
+      if (toRemove?.mediaId) {
+        setAttachedMedia((a) => a.filter((m) => m.mediaId !== toRemove.mediaId))
+      }
+      return current
+    })
   }
 
   function removeAttachedMedia(mediaId) {
     setAttachedMedia((current) => current.filter((item) => item.mediaId !== mediaId))
+    setPendingFiles((current) => {
+      const match = current.find((f) => f.mediaId === mediaId)
+      if (match?.previewUrl) {
+        URL.revokeObjectURL(match.previewUrl)
+      }
+      return current.filter((f) => f.mediaId !== mediaId)
+    })
   }
 
   async function handleCreatePost() {
@@ -263,6 +322,7 @@ function FeedPage() {
 
       setComposerText('')
       setAttachedMedia([])
+      setPendingFiles([])
       setPosts((current) => [createdPost, ...current])
       setActiveTab('for_you')
     } catch (error) {
@@ -300,6 +360,7 @@ function FeedPage() {
   }
 
   return (
+    <>
     <div className="grid gap-4 xl:grid-cols-[minmax(0,68%)_minmax(0,32%)] 2xl:grid-cols-[minmax(0,70%)_minmax(0,30%)]">
       <div className="min-w-0 space-y-4">
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[var(--shadow-card)] sm:p-5">
@@ -352,12 +413,18 @@ function FeedPage() {
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {quickComposerActions.map((action) => {
                 const Icon = action.icon
-                const isMediaAction = action.label === 'Photo / Video'
+                function handleActionClick() {
+                  if (action.action === 'media') {
+                    handleComposerMediaButtonClick()
+                  } else if (action.action === 'navigate' && onNavigate) {
+                    onNavigate(action.route)
+                  }
+                }
                 return (
                   <button
                     key={action.label}
                     type="button"
-                    onClick={isMediaAction ? handleComposerMediaButtonClick : undefined}
+                    onClick={handleActionClick}
                     className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
                   >
                     <Icon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -371,28 +438,64 @@ function FeedPage() {
               ref={mediaInputRef}
               type="file"
               accept="image/*,video/*,audio/*"
+              multiple
               className="hidden"
               onChange={handleMediaSelected}
             />
 
-            {mediaUpload.isUploading ? (
-              <p className="mt-2 text-xs font-semibold text-blue-700">
-                Uploading media... {mediaUpload.progress}%
-              </p>
-            ) : null}
-
-            {attachedMedia.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {attachedMedia.map((item) => (
-                  <button
-                    key={item.mediaId}
-                    type="button"
-                    onClick={() => removeAttachedMedia(item.mediaId)}
-                    className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
-                    title="Click to remove"
+            {pendingFiles.length > 0 ? (
+              <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {pendingFiles.map((entry) => (
+                  <div
+                    key={entry.localId}
+                    className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-100"
                   >
-                    {item.name}
-                  </button>
+                    {entry.previewUrl ? (
+                      <img
+                        src={entry.previewUrl}
+                        alt={entry.name}
+                        className="h-20 w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-20 items-center justify-center bg-slate-200">
+                        <span className="text-[10px] text-slate-500 px-1 text-center break-all">{entry.name}</span>
+                      </div>
+                    )}
+
+                    {entry.status === 'uploading' ? (
+                      <div className="absolute inset-x-0 bottom-0 h-1 bg-slate-300">
+                        <div
+                          className="h-1 bg-blue-500 transition-all"
+                          style={{ width: `${mediaUpload.progress}%` }}
+                        />
+                      </div>
+                    ) : null}
+
+                    {entry.status === 'error' ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-red-500/70">
+                        <span className="text-[10px] font-semibold text-white px-1 text-center">Failed</span>
+                      </div>
+                    ) : null}
+
+                    {entry.status === 'done' ? (
+                      <div className="absolute left-1 top-1 rounded-full bg-emerald-500 p-0.5">
+                        <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      aria-label={`Remove ${entry.name}`}
+                      onClick={() => removePendingFile(entry.localId)}
+                      className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-slate-900/60 text-white transition hover:bg-red-600"
+                    >
+                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 ))}
               </div>
             ) : null}
@@ -456,34 +559,107 @@ function FeedPage() {
 
             <p className="text-sm leading-6 text-slate-700">{post.content || ''}</p>
 
-            {getPrimaryMedia(post) ? (
-              <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
-                {getMediaUrl(getPrimaryMedia(post)) ? (
-                  <img
-                    src={getMediaUrl(getPrimaryMedia(post))}
-                    alt={getPrimaryMedia(post)?.alt || 'Post media'}
-                    className="h-64 w-full object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="relative h-44 bg-gradient-to-r from-blue-200 via-blue-400 to-blue-800">
+            {(() => {
+              const mediaItems = getAllMedia(post)
+              if (mediaItems.length === 0) {
+                return null
+              }
+
+              if (mediaItems.length === 1) {
+                const url = getMediaUrl(mediaItems[0])
+                return (
+                  <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-slate-950">
                     <button
                       type="button"
-                      className="absolute left-4 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-blue-700 shadow"
-                      aria-label="Play pitch reel"
+                      className="block w-full cursor-zoom-in"
+                      onClick={() => setLightboxUrl(url)}
+                      aria-label="View full image"
                     >
-                      <PlayCircle className="h-5 w-5" aria-hidden="true" />
+                      <img
+                        src={url}
+                        alt={mediaItems[0]?.alt || 'Post media'}
+                        className="max-h-[420px] w-full object-contain"
+                        loading="lazy"
+                      />
                     </button>
-                    <div className="absolute bottom-4 left-4 text-white">
-                      <p className="text-sm font-bold">Media Attachment</p>
-                      <p className="text-xs text-blue-100">
-                        {getPrimaryMedia(post)?.media_type || 'file'}
-                      </p>
-                    </div>
                   </div>
-                )}
-              </div>
-            ) : null}
+                )
+              }
+
+              // 2+ images — Facebook-style collage
+              const [first, ...rest] = mediaItems
+              const remaining = rest.length > 3 ? rest.slice(0, 3) : rest
+              const overflow = mediaItems.length - 4
+
+              return (
+                <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
+                  {mediaItems.length === 2 ? (
+                    <div className="grid grid-cols-2 gap-0.5">
+                      {mediaItems.map((m, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          className="block cursor-zoom-in overflow-hidden"
+                          onClick={() => setLightboxUrl(getMediaUrl(m))}
+                          aria-label="View full image"
+                        >
+                          <img
+                            src={getMediaUrl(m)}
+                            alt={m?.alt || 'Post media'}
+                            className="h-56 w-full object-cover"
+                            loading="lazy"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-0.5">
+                      <button
+                        type="button"
+                        className="block cursor-zoom-in overflow-hidden"
+                        onClick={() => setLightboxUrl(getMediaUrl(first))}
+                        aria-label="View full image"
+                      >
+                        <img
+                          src={getMediaUrl(first)}
+                          alt={first?.alt || 'Post media'}
+                          className="h-72 w-full object-cover"
+                          loading="lazy"
+                        />
+                      </button>
+                      <div className="grid gap-0.5" style={{ gridTemplateRows: `repeat(${remaining.length}, 1fr)` }}>
+                        {remaining.map((m, i) => {
+                          const isLast = i === remaining.length - 1 && overflow > 0
+                          return (
+                            <button
+                              key={i}
+                              type="button"
+                              className="relative block cursor-zoom-in overflow-hidden"
+                              onClick={() => setLightboxUrl(getMediaUrl(m))}
+                              aria-label="View full image"
+                            >
+                              <img
+                                src={getMediaUrl(m)}
+                                alt={m?.alt || 'Post media'}
+                                className={`h-full min-h-20 w-full object-cover ${
+                                  isLast ? 'brightness-50' : ''
+                                }`}
+                                loading="lazy"
+                              />
+                              {isLast ? (
+                                <span className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-white">
+                                  +{overflow + 1}
+                                </span>
+                              ) : null}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
             <footer className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500">
               <div className="flex items-center gap-4">
@@ -577,6 +753,32 @@ function FeedPage() {
         </SidebarCard>
       </aside>
     </div>
+
+    {lightboxUrl ? (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Full image view"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+        onClick={() => setLightboxUrl(null)}
+      >
+        <button
+          type="button"
+          aria-label="Close image"
+          className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/25"
+          onClick={() => setLightboxUrl(null)}
+        >
+          ✕
+        </button>
+        <img
+          src={lightboxUrl}
+          alt="Full size view"
+          className="max-h-[90vh] max-w-full rounded-xl object-contain shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        />
+      </div>
+    ) : null}
+    </>
   )
 }
 

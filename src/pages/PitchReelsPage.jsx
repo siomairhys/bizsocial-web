@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Heart, MessageCircle, Share2, Upload } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Heart, MessageCircle, Play, Share2, Upload, X } from 'lucide-react'
 
 import { useAuth } from '../modules/auth/context/useAuth'
 import { pitchReelsRepository } from '../repositories/pitchReelsRepository'
@@ -24,12 +24,121 @@ function formatCount(value) {
   return `${value}`
 }
 
+function PitchReelModal({ item, onClose }) {
+  const videoRef = useRef(null)
+
+  // Pause video when modal closes
+  useEffect(() => {
+    return () => {
+      videoRef.current?.pause()
+    }
+  }, [])
+
+  // Close on Escape key
+  useEffect(() => {
+    function handleKey(e) {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-2xl overflow-hidden rounded-2xl bg-slate-900 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute right-3 top-3 z-10 grid h-8 w-8 place-items-center rounded-full bg-slate-800/80 text-white transition hover:bg-red-600"
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
+
+        {/* Video / Cover */}
+        {item.primaryVideoUrl ? (
+          <video
+            ref={videoRef}
+            src={item.primaryVideoUrl}
+            controls
+            autoPlay
+            playsInline
+            className="max-h-[60vh] w-full object-contain bg-black"
+            poster={item.coverImageUrl || undefined}
+          />
+        ) : item.coverImageUrl ? (
+          <img
+            src={item.coverImageUrl}
+            alt={item.title}
+            className="max-h-[50vh] w-full object-contain bg-black"
+          />
+        ) : (
+          <div className={`flex h-56 items-center justify-center bg-gradient-to-b ${item.gradient}`}>
+            <Play className="h-14 w-14 text-white/60" aria-hidden="true" />
+          </div>
+        )}
+
+        {/* Info */}
+        <div className="space-y-3 p-5 text-white">
+          <div className="flex items-center gap-3">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-300 text-sm font-bold text-slate-700">
+              {item.initials}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">{item.authorName}</p>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xl font-bold leading-snug">{item.title}</p>
+            {item.subtitle ? <p className="mt-1 text-sm text-slate-300">{item.subtitle}</p> : null}
+          </div>
+
+          <div className="flex items-center gap-4 border-t border-slate-700 pt-3 text-sm text-slate-300">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition hover:bg-slate-800"
+            >
+              <Heart className="h-4 w-4" aria-hidden="true" />
+              {formatCount(item.likes)}
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition hover:bg-slate-800"
+            >
+              <MessageCircle className="h-4 w-4" aria-hidden="true" />
+              {item.comments}
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition hover:bg-slate-800"
+            >
+              <Share2 className="h-4 w-4" aria-hidden="true" />
+              Share
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function PitchReelsPage({ onNavigate }) {
   const { token } = useAuth()
   const [activeTab, setActiveTab] = useState('top')
   const [items, setItems] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [selectedItem, setSelectedItem] = useState(null)
 
   useEffect(() => {
     let active = true
@@ -67,6 +176,7 @@ function PitchReelsPage({ onNavigate }) {
   }, [activeTab, token])
 
   return (
+    <>
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -110,7 +220,12 @@ function PitchReelsPage({ onNavigate }) {
             {items.map((item) => (
               <article
                 key={item.id}
-                className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-900 shadow-sm"
+                role="button"
+                tabIndex={0}
+                aria-label={`Open pitch reel: ${item.title}`}
+                onClick={() => setSelectedItem(item)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedItem(item) }}
+                className="cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-slate-900 shadow-sm transition hover:ring-2 hover:ring-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <div className={`relative h-64 bg-gradient-to-b ${item.gradient}`}>
                   {item.coverImageUrl ? (
@@ -120,8 +235,22 @@ function PitchReelsPage({ onNavigate }) {
                       className="h-full w-full object-cover"
                       loading="lazy"
                     />
+                  ) : item.primaryVideoUrl ? (
+                    <video
+                      src={item.primaryVideoUrl}
+                      className="h-full w-full object-cover"
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
                   ) : null}
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent" />
+                  {/* Play icon overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 transition hover:opacity-100">
+                    <div className="grid h-14 w-14 place-items-center rounded-full bg-white/20 backdrop-blur-sm">
+                      <Play className="h-6 w-6 text-white" aria-hidden="true" />
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-3 bg-slate-950 p-3.5 text-white">
                   <div className="flex items-center gap-2 text-xs text-slate-200">
@@ -157,7 +286,13 @@ function PitchReelsPage({ onNavigate }) {
         )}
       </section>
     </div>
+
+    {selectedItem ? (
+      <PitchReelModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+    ) : null}
+    </>
   )
 }
 
 export default PitchReelsPage
+

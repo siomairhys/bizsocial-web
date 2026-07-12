@@ -73,6 +73,7 @@ export const apiEndpoints = Object.freeze({
     list: '/groups',
     create: '/groups',
     byId: (groupId) => `/groups/${groupId}`,
+    bySlug: (slug) => `/groups/slug/${slug}`,
     posts: (groupId) => `/groups/${groupId}/posts`,
     events: (groupId) => `/groups/${groupId}/events`,
     join: (groupId) => `/groups/${groupId}/join`,

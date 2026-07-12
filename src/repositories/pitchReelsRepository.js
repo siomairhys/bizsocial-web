@@ -62,11 +62,16 @@ function mapPitchReelCard(item) {
     shares: Number(item.shares_count || 0),
     gradient: item.gradient || 'from-[#8db0df] via-[#7c96ca] to-[#6779b4]',
     coverImageUrl:
+      item.cover_media?.download_url ||
+      item.cover_media?.url ||
       item.coverImageUrl ||
       item.cover_image_url ||
       item.cover_url ||
       item.thumbnail_url ||
-      item.media_url ||
+      '',
+    primaryVideoUrl:
+      item.primary_media?.download_url ||
+      item.primary_media?.url ||
       '',
   }
 }

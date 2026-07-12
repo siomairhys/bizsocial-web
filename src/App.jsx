@@ -89,7 +89,7 @@ function AppContent() {
 
   function renderAuthenticatedRoute() {
     if (route === '/feed') {
-      return <FeedPage />
+      return <FeedPage onNavigate={navigateTo} />
     }
 
     if (route === '/pitch-reels') {
@@ -133,11 +133,11 @@ function AppContent() {
     }
 
     if (route === '/groups/create') {
-      return <CreateGroupPage />
+      return <CreateGroupPage onNavigate={navigateTo} />
     }
 
     if (route.startsWith('/groups/')) {
-      return <GroupDetailPage />
+      return <GroupDetailPage groupSlug={route.replace('/groups/', '')} onNavigate={navigateTo} />
     }
 
     if (route === '/events') {

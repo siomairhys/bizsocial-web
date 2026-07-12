@@ -161,13 +161,32 @@ function CreatePitchReelPage({ onNavigate }) {
 
     setError('')
 
+    // Show a local preview immediately before upload completes
+    const localPreviewUrl = URL.createObjectURL(file)
+    const pendingItem = {
+      mediaId: null,
+      name: file.name,
+      type: file.type || (isPrimary ? 'video/*' : 'image/*'),
+      previewUrl: localPreviewUrl,
+      downloadUrl: null,
+      uploading: true,
+    }
+
+    if (isPrimary) {
+      setPrimaryMedia(pendingItem)
+    } else {
+      setCoverMedia(pendingItem)
+    }
+
     try {
       const result = await mediaUpload.upload(file)
       const item = {
         mediaId: Number(result.mediaId),
         name: file.name,
         type: file.type || (isPrimary ? 'video/*' : 'image/*'),
-        downloadUrl: result.downloadUrl,
+        previewUrl: localPreviewUrl,
+        downloadUrl: result.downloadUrl || localPreviewUrl,
+        uploading: false,
       }
 
       if (isPrimary) {
@@ -176,6 +195,12 @@ function CreatePitchReelPage({ onNavigate }) {
         setCoverMedia(item)
       }
     } catch (uploadError) {
+      if (isPrimary) {
+        setPrimaryMedia(null)
+      } else {
+        setCoverMedia(null)
+      }
+      URL.revokeObjectURL(localPreviewUrl)
       setError(uploadError?.message || 'Failed to upload media.')
     }
   }
@@ -203,6 +228,10 @@ function CreatePitchReelPage({ onNavigate }) {
   async function removeSelectedMedia(mediaKind) {
     const isPrimary = mediaKind === 'primary'
     const current = isPrimary ? primaryMedia : coverMedia
+
+    if (current?.previewUrl) {
+      URL.revokeObjectURL(current.previewUrl)
+    }
 
     if (!current?.mediaId || !token) {
       if (isPrimary) {
@@ -303,19 +332,47 @@ function CreatePitchReelPage({ onNavigate }) {
           </div>
 
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Record or upload a pitch reel</label>
-          <button
-            type="button"
-            onClick={() => primaryInputRef.current?.click()}
-            disabled={mediaUpload.isUploading}
-            className="grid h-24 w-full place-items-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100"
-          >
-            <span className="text-center">
-              <Play className="mx-auto h-7 w-7" aria-hidden="true" />
-              <span className="mt-2 block text-sm font-semibold">
-                {mediaUpload.isUploading ? `Uploading... ${mediaUpload.progress}%` : 'Record or upload a pitch reel'}
+
+          {primaryMedia ? (
+            <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-950">
+              <video
+                src={primaryMedia.previewUrl || primaryMedia.downloadUrl || ''}
+                controls={!primaryMedia.uploading}
+                className="max-h-64 w-full object-contain"
+              />
+              {primaryMedia.uploading ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/70">
+                  <p className="text-sm font-semibold text-white">Uploading... {mediaUpload.progress}%</p>
+                  <div className="mt-2 h-1.5 w-48 overflow-hidden rounded-full bg-slate-600">
+                    <div
+                      className="h-full rounded-full bg-blue-400 transition-all"
+                      style={{ width: `${mediaUpload.progress}%` }}
+                    />
+                  </div>
+                </div>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => removeSelectedMedia('primary')}
+                className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-slate-900/70 text-white transition hover:bg-red-600"
+                aria-label="Remove primary media"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => primaryInputRef.current?.click()}
+              disabled={mediaUpload.isUploading}
+              className="grid h-24 w-full place-items-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <span className="text-center">
+                <Play className="mx-auto h-7 w-7" aria-hidden="true" />
+                <span className="mt-2 block text-sm font-semibold">Record or upload a pitch reel</span>
               </span>
-            </span>
-          </button>
+            </button>
+          )}
           <input
             ref={primaryInputRef}
             type="file"
@@ -323,20 +380,6 @@ function CreatePitchReelPage({ onNavigate }) {
             className="hidden"
             onChange={handlePickPrimary}
           />
-
-          {primaryMedia ? (
-            <div className="mt-2 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-              <span className="truncate pr-2">Primary video: {primaryMedia.name} (#{primaryMedia.mediaId})</span>
-              <button
-                type="button"
-                onClick={() => removeSelectedMedia('primary')}
-                className="inline-flex h-7 items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-slate-600 transition hover:bg-slate-100"
-                aria-label="Remove primary media"
-              >
-                <X className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
-            </div>
-          ) : null}
 
           <div className="mt-4 space-y-3">
             <div>
@@ -397,18 +440,49 @@ function CreatePitchReelPage({ onNavigate }) {
 
           <div className="mt-4">
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Upload cover image or preview</label>
-            <button
-              type="button"
-              onClick={() => coverInputRef.current?.click()}
-              disabled={mediaUpload.isUploading}
-              className="grid h-24 w-full place-items-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100"
-            >
-              <span className="text-center">
-                <Upload className="mx-auto h-7 w-7" aria-hidden="true" />
-                <span className="mt-2 block text-sm font-semibold">Upload cover image or preview</span>
-                <span className="mt-0.5 block text-xs text-blue-600">Recommended 1600 x 600 px</span>
-              </span>
-            </button>
+
+            {coverMedia ? (
+              <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                <img
+                  src={coverMedia.previewUrl || coverMedia.downloadUrl || ''}
+                  alt="Cover preview"
+                  className="max-h-48 w-full object-contain"
+                />
+                {coverMedia.uploading ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/70">
+                    <p className="text-sm font-semibold text-slate-700">Uploading... {mediaUpload.progress}%</p>
+                    <div className="mt-2 h-1.5 w-48 overflow-hidden rounded-full bg-slate-300">
+                      <div
+                        className="h-full rounded-full bg-blue-500 transition-all"
+                        style={{ width: `${mediaUpload.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => removeSelectedMedia('cover')}
+                  className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-slate-900/70 text-white transition hover:bg-red-600"
+                  aria-label="Remove cover media"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <div className="px-3 py-1.5 text-xs text-slate-500 truncate">{coverMedia.name}</div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => coverInputRef.current?.click()}
+                disabled={mediaUpload.isUploading}
+                className="grid h-24 w-full place-items-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <span className="text-center">
+                  <Upload className="mx-auto h-7 w-7" aria-hidden="true" />
+                  <span className="mt-2 block text-sm font-semibold">Upload cover image or preview</span>
+                  <span className="mt-0.5 block text-xs text-blue-600">Recommended 1600 x 600 px</span>
+                </span>
+              </button>
+            )}
             <input
               ref={coverInputRef}
               type="file"
@@ -416,20 +490,6 @@ function CreatePitchReelPage({ onNavigate }) {
               className="hidden"
               onChange={handlePickCover}
             />
-
-            {coverMedia ? (
-              <div className="mt-2 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                <span className="truncate pr-2">Cover image: {coverMedia.name} (#{coverMedia.mediaId})</span>
-                <button
-                  type="button"
-                  onClick={() => removeSelectedMedia('cover')}
-                  className="inline-flex h-7 items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-slate-600 transition hover:bg-slate-100"
-                  aria-label="Remove cover media"
-                >
-                  <X className="h-3.5 w-3.5" aria-hidden="true" />
-                </button>
-              </div>
-            ) : null}
           </div>
 
           <div className="mt-4 space-y-2">

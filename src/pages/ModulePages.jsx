@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 
 import AvatarPlaceholder from '../components/common/AvatarPlaceholder'
 import Card from '../components/common/Card'
@@ -6,6 +6,9 @@ import ProgressBar from '../components/common/ProgressBar'
 import StatusBadge from '../components/common/StatusBadge'
 import { DynamicIcon } from '../components/common/icons'
 import { seedImages } from '../data/defaultSeedData'
+import { useAuth } from '../modules/auth/context/useAuth'
+import { bizbucksRepository } from '../repositories/bizbucksRepository'
+import { groupsRepository } from '../repositories/groupsRepository'
 
 const tabs = ['Overview', 'Featured', 'Saved', 'Mine']
 
@@ -86,7 +89,7 @@ function EmptyMedia({ className = '', label = 'Preview' }) {
   )
 }
 
-function Field({ label, placeholder, textarea = false, rows = 3 }) {
+function Field({ label, placeholder, textarea = false, rows = 3, ...inputProps }) {
   return (
     <label className="block">
       <span className="mb-2 block text-xs font-bold text-slate-500">{label}</span>
@@ -94,11 +97,13 @@ function Field({ label, placeholder, textarea = false, rows = 3 }) {
         <textarea
           rows={rows}
           placeholder={placeholder}
+          {...inputProps}
           className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
         />
       ) : (
         <input
           placeholder={placeholder}
+          {...inputProps}
           className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
         />
       )}
@@ -129,10 +134,20 @@ function PublishChecklist({ items, title = 'Before you publish' }) {
   )
 }
 
-function FormShell({ title, description, status = 'Draft', submitLabel, children, checklist }) {
+function FormShell({
+  title,
+  description,
+  status = 'Draft',
+  submitLabel,
+  children,
+  checklist,
+  onSubmit,
+  submitting = false,
+  submitDisabled = false,
+}) {
   return (
     <div className="space-y-4">
-      <PageHeader title={title} description={description} actionLabel={submitLabel} actionIcon="Check" />
+      <PageHeader title={title} description={description} actionLabel={submitLabel} actionIcon="Check" onAction={onSubmit} />
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
         <Card className="min-h-[620px] p-5 sm:p-6">
           <div className="mb-6 flex items-center justify-between gap-3">
@@ -144,8 +159,13 @@ function FormShell({ title, description, status = 'Draft', submitLabel, children
             <button type="button" className="h-11 rounded-xl border border-slate-200 px-5 text-sm font-bold text-blue-700 transition hover:bg-slate-50">
               Save Draft
             </button>
-            <button type="button" className="h-11 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white transition hover:bg-blue-500">
-              {submitLabel}
+            <button
+              type="button"
+              onClick={onSubmit}
+              disabled={submitting || submitDisabled}
+              className="h-11 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {submitting ? 'Saving...' : submitLabel}
             </button>
           </div>
         </Card>
@@ -171,6 +191,147 @@ const walletTransactions = [
 ]
 
 export function BizBucksWalletPage({ onNavigate }) {
+  const { token } = useAuth()
+  const [wallet, setWallet] = useState(null)
+  const [transactions, setTransactions] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [transferMode, setTransferMode] = useState(null)
+  const [transferForm, setTransferForm] = useState({ recipientUserId: '2', amount: '50', note: '' })
+  const [transferLoading, setTransferLoading] = useState(false)
+  const [transferError, setTransferError] = useState(null)
+  const [transferSuccess, setTransferSuccess] = useState(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const [walletData, txData] = await Promise.all([
+          bizbucksRepository.getWallet(token),
+          bizbucksRepository.listTransactions(token, { limit: 4, offset: 0 }),
+        ])
+        setWallet(walletData)
+        setTransactions(Array.isArray(txData) ? txData : [])
+      } catch (err) {
+        setError(err.message || 'Failed to load wallet data')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [token])
+
+  function openTransferModal(mode) {
+    setTransferMode(mode)
+    setTransferError(null)
+    setTransferSuccess(null)
+    setTransferForm({
+      recipientUserId: '2',
+      amount: mode === 'reward' ? '25' : '50',
+      note: mode === 'reward' ? 'Reward for helpful support.' : '',
+    })
+  }
+
+  function closeTransferModal() {
+    if (!transferLoading) {
+      setTransferMode(null)
+      setTransferError(null)
+      setTransferSuccess(null)
+    }
+  }
+
+  async function handleTransferSubmit() {
+    if (!token) {
+      setTransferError('Sign in before sending BizBucks.')
+      return
+    }
+
+    const recipientUserId = Number.parseInt(transferForm.recipientUserId, 10)
+    const amount = Number.parseInt(transferForm.amount, 10)
+
+    if (!Number.isInteger(recipientUserId) || recipientUserId <= 0) {
+      setTransferError('Enter a valid recipient user ID.')
+      return
+    }
+
+    if (!Number.isInteger(amount) || amount <= 0 || amount > 10000) {
+      setTransferError('Enter an amount from 1 to 10,000.')
+      return
+    }
+
+    try {
+      setTransferLoading(true)
+      setTransferError(null)
+      setTransferSuccess(null)
+      const result = await bizbucksRepository.transferBizBucks(
+        token,
+        recipientUserId,
+        amount,
+        transferForm.note.trim() || null
+      )
+
+      setWallet((current) => current ? {
+        ...current,
+        balance: result.sender_new_balance,
+        lifetime_spent: Number(current.lifetime_spent || 0) + amount,
+        updated_at: result.created_at || new Date().toISOString(),
+      } : current)
+      setTransactions((current) => [
+        {
+          id: `transfer-${Date.now()}`,
+          note: result.note || `${transferMode === 'reward' ? 'Rewarded' : 'Sent'} BizBucks to user #${recipientUserId}`,
+          amount: -amount,
+        },
+        ...current,
+      ].slice(0, 4))
+      setTransferSuccess(`${amount.toLocaleString()} BizBucks sent to user #${recipientUserId}.`)
+      setTransferForm((current) => ({ ...current, amount: '', note: '' }))
+    } catch (err) {
+      setTransferError(err.message || 'Failed to send BizBucks.')
+    } finally {
+      setTransferLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <PageHeader
+          title="BizBucks Wallet"
+          description="Track rewards, purchases, and boosts across the BizSocials economy."
+          actionLabel="Buy BizBucks"
+          actionIcon="Wallet"
+          onAction={() => onNavigate?.('/bizbucks/buy')}
+        />
+        <Card className="p-6">
+          <p className="text-center text-slate-500">Loading wallet data...</p>
+        </Card>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <PageHeader
+          title="BizBucks Wallet"
+          description="Track rewards, purchases, and boosts across the BizSocials economy."
+          actionLabel="Buy BizBucks"
+          actionIcon="Wallet"
+          onAction={() => onNavigate?.('/bizbucks/buy')}
+        />
+        <Card className="p-6">
+          <p className="text-center text-rose-600">Error: {error}</p>
+        </Card>
+      </div>
+    )
+  }
+
+  const displayBalance = wallet?.balance ?? 0
+  const displayTransactions = transactions.length > 0 ? transactions : walletTransactions.map(([label, amount]) => ({ note: label, amount: parseInt(amount) }))
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -184,31 +345,40 @@ export function BizBucksWalletPage({ onNavigate }) {
         <div className="space-y-4">
           <section className="rounded-2xl bg-gradient-to-r from-[#0f66d7] to-[#06a9c7] p-6 text-white shadow-[var(--shadow-card)]">
             <p className="text-sm font-semibold text-blue-50">Wallet Balance</p>
-            <p className="mt-3 text-4xl font-bold">1,250</p>
+            <p className="mt-3 text-4xl font-bold">{displayBalance.toLocaleString()}</p>
             <p className="mt-1 text-sm text-blue-50">BizBucks available for boosts, rewards, and campaign perks.</p>
           </section>
           <Card className="p-5">
             <SectionTitle title="Recent Transactions" action="View all" />
             <div className="space-y-3">
-              {walletTransactions.map(([label, amount, color]) => (
-                <div key={label} className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-3">
-                  <div className="flex items-center gap-3">
-                    <span className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-blue-600">
-                      <DynamicIcon name="Wallet" className="h-4 w-4" aria-hidden="true" />
-                    </span>
-                    <span className="text-sm font-semibold text-slate-800">{label}</span>
+              {Array.isArray(displayTransactions) && displayTransactions.map((tx, idx) => {
+                const isTransaction = tx.amount !== undefined && tx.note !== undefined
+                const [label, amount, color] = !isTransaction ? tx : [tx.note || 'Transaction', tx.amount > 0 ? `+${tx.amount}` : `${tx.amount}`, tx.amount > 0 ? 'text-emerald-600' : 'text-rose-600']
+                
+                return (
+                  <div key={idx} className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-blue-600">
+                        <DynamicIcon name="Wallet" className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                      <span className="text-sm font-semibold text-slate-800">{label}</span>
+                    </div>
+                    <span className={`text-sm font-bold ${color}`}>{amount}</span>
                   </div>
-                  <span className={`text-sm font-bold ${color}`}>{amount}</span>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </Card>
         </div>
         <div className="space-y-4">
           <Card className="p-5">
             <SectionTitle title="Quick Actions" />
-            {['Buy BizBucks', 'Send BizBucks', 'Reward a member'].map((item) => (
-              <button key={item} type="button" className="mb-2 h-10 w-full rounded-xl bg-blue-600 text-sm font-bold text-white last:mb-0">
+            {[
+              ['Buy BizBucks', () => onNavigate?.('/bizbucks/buy')],
+              ['Send BizBucks', () => openTransferModal('send')],
+              ['Reward a member', () => openTransferModal('reward')],
+            ].map(([item, onClick]) => (
+              <button key={item} type="button" onClick={onClick} className="mb-2 h-10 w-full rounded-xl bg-blue-600 text-sm font-bold text-white transition hover:bg-blue-500 last:mb-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
                 {item}
               </button>
             ))}
@@ -224,32 +394,175 @@ export function BizBucksWalletPage({ onNavigate }) {
           </Card>
         </div>
       </div>
+      {transferMode ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-labelledby="bizbucks-transfer-title">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 id="bizbucks-transfer-title" className="text-lg font-bold text-slate-950">
+                  {transferMode === 'reward' ? 'Reward a member' : 'Send BizBucks'}
+                </h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  Use a recipient user ID until member search is connected.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeTransferModal}
+                className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                aria-label="Close transfer form"
+              >
+                <DynamicIcon name="X" className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <Field
+                label="Recipient user ID"
+                placeholder="2"
+                inputMode="numeric"
+                value={transferForm.recipientUserId}
+                onChange={(event) => setTransferForm((current) => ({ ...current, recipientUserId: event.target.value }))}
+              />
+              <Field
+                label="Amount"
+                placeholder="50"
+                inputMode="numeric"
+                value={transferForm.amount}
+                onChange={(event) => setTransferForm((current) => ({ ...current, amount: event.target.value }))}
+              />
+              <Field
+                label="Note"
+                placeholder="Helpful feedback on my pitch."
+                textarea
+                rows={2}
+                value={transferForm.note}
+                onChange={(event) => setTransferForm((current) => ({ ...current, note: event.target.value }))}
+              />
+
+              {transferError ? <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700" role="alert">{transferError}</div> : null}
+              {transferSuccess ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700" role="status">{transferSuccess}</div> : null}
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <button type="button" onClick={closeTransferModal} className="h-11 rounded-xl border border-slate-200 px-5 text-sm font-bold text-blue-700 transition hover:bg-slate-50">
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleTransferSubmit}
+                  disabled={transferLoading}
+                  className="h-11 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {transferLoading ? 'Sending...' : 'Send BizBucks'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
 
 export function BuyBizBucksPage() {
+  const { token } = useAuth()
+  const [selectedPackage, setSelectedPackage] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+
+  const packages = [
+    { id: '250', amount: 250, price: 25 },
+    { id: '1000', amount: 1000, price: 90 },
+    { id: '2500', amount: 2500, price: 200 },
+  ]
+
+  const handlePurchase = async (packageId) => {
+    if (!token) {
+      setError('Please log in to make a purchase')
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      setSelectedPackage(packageId)
+
+      // Create purchase intent with backend
+      const intent = await bizbucksRepository.createPurchaseIntent(token, packageId)
+
+      // In a real app, this would redirect to Stripe Checkout
+      // For now, show success message
+      alert(`Purchase initiated!\n\nPackage: ${packageId} BizBucks\nAmount: $${packages.find(p => p.id === packageId)?.price}\n\nRedirect to Stripe would happen here with client_secret: ${intent.client_secret}`)
+      setSelectedPackage(null)
+    } catch (err) {
+      setError(err.message || 'Failed to create purchase. Please try again.')
+      setSelectedPackage(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       <PageHeader title="Buy BizBucks" description="Purchase BizBucks to boost campaigns, reward members, and unlock visibility tools." />
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
         <Card className="p-5">
           <SectionTitle title="Buy BizBucks" />
+          
+          {error && (
+            <div className="mb-5 rounded-lg bg-rose-50 p-4 text-sm text-rose-700">
+              {error}
+            </div>
+          )}
+
           <div className="grid gap-3 md:grid-cols-3">
-            {[
-              ['250', '$25'],
-              ['1,000', '$90'],
-              ['2,500', '$200'],
-            ].map(([amount, price]) => (
-              <button key={amount} type="button" className="min-h-32 rounded-2xl border border-slate-200 bg-white p-4 text-center transition hover:border-blue-400 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-                <p className="text-2xl font-bold text-slate-950">{amount}</p>
-                <p className="mt-2 text-sm font-bold text-blue-600">{price}</p>
+            {packages.map(({ id, amount, price }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => handlePurchase(id)}
+                disabled={loading && selectedPackage === id}
+                className={`min-h-32 rounded-2xl border-2 p-4 text-center transition ${
+                  selectedPackage === id
+                    ? 'border-blue-600 bg-blue-50'
+                    : 'border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50'
+                } disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500`}
+              >
+                {loading && selectedPackage === id ? (
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                    <p className="text-xs text-slate-500">Processing...</p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-2xl font-bold text-slate-950">{amount.toLocaleString()}</p>
+                    <p className="mt-2 text-sm font-bold text-blue-600">${price}</p>
+                  </>
+                )}
               </button>
             ))}
           </div>
-          <Field label="Payment method" placeholder="Visa ending in 4242" />
-          <button type="button" className="mt-5 h-11 w-full rounded-xl bg-blue-600 text-sm font-bold text-white">Complete Purchase</button>
+
+          <label className="mt-5 block">
+            <span className="mb-2 block text-xs font-bold text-slate-500">Payment method</span>
+            <input
+              type="text"
+              placeholder="Visa ending in 4242"
+              disabled
+              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-500 outline-none"
+            />
+            <p className="mt-2 text-xs text-slate-500">Payment will be processed through Stripe after selection</p>
+          </label>
+
+          <button
+            type="button"
+            disabled={!selectedPackage || loading}
+            className="mt-5 h-11 w-full rounded-xl bg-blue-600 text-sm font-bold text-white disabled:opacity-50 transition hover:bg-blue-500"
+          >
+            {loading ? 'Processing...' : 'Complete Purchase'}
+          </button>
         </Card>
+
         <Card className="p-5">
           <SectionTitle title="Need BizBucks for a boost?" />
           {['Boost a pitch or listing', 'Reward helpful members', 'Promote a campaign'].map((item) => (
@@ -414,38 +727,132 @@ export function CredTrackActionPlanPage() {
   )
 }
 
-const groups = [
-  ['Entrepreneurs Unite', '12.4K members', 'Business Growth', 'EU'],
-  ['Women Founder Circle', '8.9K members', 'Funding', 'WF'],
-  ['Black Business Builders', '15.2K members', 'Community', 'BB'],
-  ['Creative Professionals', '7.3K members', 'Marketing', 'CP'],
-]
+const groupTabs = ['Featured', 'My Groups', 'Nearby', 'New']
+
+function getInitials(name = 'Group') {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase() || 'G'
+}
+
+function formatMemberCount(count = 0) {
+  return `${Number(count || 0).toLocaleString()} members`
+}
+
+function formatActivityDate(value) {
+  if (!value) {
+    return 'Recently'
+  }
+
+  try {
+    return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(value))
+  } catch {
+    return 'Recently'
+  }
+}
+
+function toSlug(value) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function getTopicText(group) {
+  return Array.isArray(group?.topics) && group.topics.length > 0 ? group.topics[0] : 'Community'
+}
 
 export function GroupsDirectoryPage({ onNavigate }) {
+  const { token } = useAuth()
   const [active, setActive] = useState('Featured')
+  const [groups, setGroups] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadGroups() {
+      try {
+        setLoading(true)
+        setError(null)
+        const payload = await groupsRepository.getList({ token, limit: 20, offset: 0 })
+        if (isMounted) {
+          setGroups(Array.isArray(payload?.items) ? payload.items : [])
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err.message || 'Unable to load groups.')
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadGroups()
+
+    return () => {
+      isMounted = false
+    }
+  }, [token])
+
+  const visibleGroups = useMemo(() => {
+    if (active === 'New') {
+      return [...groups].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+    }
+
+    return groups
+  }, [active, groups])
+
   return (
     <div className="space-y-4">
       <PageHeader title="Groups" description="Find people, build community, and collaborate around shared business goals." actionLabel="Create Group" actionIcon="Users" onAction={() => onNavigate?.('/groups/create')} />
       <Card className="p-5">
-        <PillTabs items={['Featured', 'My Groups', 'Nearby', 'New']} active={active} onChange={setActive} />
-        <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          {groups.map(([name, members, topic, initials]) => (
-            <article key={name} className="flex min-w-0 items-center justify-between gap-4 rounded-xl border border-slate-200 p-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="grid h-12 w-12 flex-none place-items-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">{initials}</div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-slate-900">{name}</p>
-                  <p className="mt-1 text-xs text-slate-500">{members}</p>
-                  <p className="mt-1 text-xs font-bold text-blue-600">{topic}</p>
+        <PillTabs items={groupTabs} active={active} onChange={setActive} />
+
+        {error ? (
+          <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">{error}</div>
+        ) : null}
+
+        {loading ? (
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            {[0, 1, 2, 3].map((item) => (
+              <div key={item} className="h-24 animate-pulse rounded-xl bg-slate-100" />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            {visibleGroups.map((group) => (
+              <article key={group.id || group.slug} className="flex min-w-0 items-center justify-between gap-4 rounded-xl border border-slate-200 p-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="grid h-12 w-12 flex-none place-items-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">{getInitials(group.name)}</div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-slate-900">{group.name}</p>
+                    <p className="mt-1 text-xs text-slate-500">{formatMemberCount(group.member_count)}</p>
+                    <p className="mt-1 text-xs font-bold text-blue-600">{getTopicText(group)}</p>
+                  </div>
                 </div>
-              </div>
-              <button type="button" onClick={() => onNavigate?.('/groups/entrepreneurs-unite')} className="h-9 rounded-lg bg-blue-600 px-4 text-xs font-bold text-white">Open</button>
-            </article>
-          ))}
-        </div>
+                <button
+                  type="button"
+                  onClick={() => onNavigate?.(`/groups/${group.slug || group.id}`)}
+                  className="h-9 rounded-lg bg-blue-600 px-4 text-xs font-bold text-white"
+                >
+                  Open
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
       </Card>
       <div className="grid gap-4 lg:grid-cols-3">
-        {['BTB Founders', 'Growing Businesses', 'Capital Ready'].map((item) => (
+        {['Build with peers', 'Share founder updates', 'Find capital-ready members'].map((item) => (
           <Card key={item} className="p-5">
             <p className="text-sm font-bold text-slate-900">{item}</p>
             <p className="mt-2 text-xs leading-5 text-slate-500">Recommended for your growth stage.</p>
@@ -456,87 +863,215 @@ export function GroupsDirectoryPage({ onNavigate }) {
   )
 }
 
-export function GroupDetailPage() {
+export function GroupDetailPage({ groupSlug, onNavigate }) {
+  const { token } = useAuth()
+  const [group, setGroup] = useState(null)
+  const [posts, setPosts] = useState([])
+  const [events, setEvents] = useState([])
+  const [postBody, setPostBody] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [posting, setPosting] = useState(false)
+  const [joining, setJoining] = useState(false)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadGroup() {
+      try {
+        setLoading(true)
+        setError(null)
+        const detail = await groupsRepository.getDetail(groupSlug, { token })
+        const [postsPayload, eventsPayload] = await Promise.all([
+          groupsRepository.getPostList(detail.id, { token, limit: 20, offset: 0 }),
+          groupsRepository.getEventList(detail.id, { token, limit: 20, offset: 0 }),
+        ])
+
+        if (isMounted) {
+          setGroup(detail)
+          setPosts(Array.isArray(postsPayload?.items) ? postsPayload.items : [])
+          setEvents(Array.isArray(eventsPayload?.items) ? eventsPayload.items : [])
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err.message || 'Unable to load group.')
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadGroup()
+
+    return () => {
+      isMounted = false
+    }
+  }, [groupSlug, token])
+
+  async function handleJoin() {
+    if (!token || !group?.id || group.is_member) {
+      return
+    }
+
+    try {
+      setJoining(true)
+      setError(null)
+      const updated = await groupsRepository.join(token, group.id)
+      setGroup(updated)
+    } catch (err) {
+      setError(err.message || 'Unable to join group.')
+    } finally {
+      setJoining(false)
+    }
+  }
+
+  async function handleCreatePost() {
+    const body = postBody.trim()
+    if (!token || !group?.id || !body) {
+      return
+    }
+
+    try {
+      setPosting(true)
+      setError(null)
+      const created = await groupsRepository.createPost(token, group.id, {
+        body,
+        media_ids: [],
+        status: 'published',
+      })
+      setPosts((current) => [created, ...current])
+      setPostBody('')
+      setGroup((current) => current ? { ...current, posts_count: Number(current.posts_count || 0) + 1 } : current)
+    } catch (err) {
+      setError(err.message || 'Unable to create post.')
+    } finally {
+      setPosting(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <PageHeader title="Groups" description="Loading group details and posts." />
+        <Card className="h-64 animate-pulse bg-slate-100 p-5" />
+      </div>
+    )
+  }
+
+  if (!group) {
+    return (
+      <div className="space-y-4">
+        <PageHeader title="Group not found" description="This group could not be loaded." actionLabel="Back to Groups" actionIcon="Users" onAction={() => onNavigate?.('/groups')} />
+        {error ? <Card className="p-5 text-sm font-semibold text-rose-600">{error}</Card> : null}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
-      <PageHeader title="Entrepreneurs Unite" description="A community space for founders, creators, and growth-minded business owners." />
+      <PageHeader title={group.name} description={group.description || 'A community space for founders, creators, and growth-minded business owners.'} actionLabel="Back to Groups" actionIcon="Users" onAction={() => onNavigate?.('/groups')} />
+      {error ? <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">{error}</div> : null}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="space-y-4">
           <Card className="p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-5">
-                <div className="grid h-20 w-20 place-items-center rounded-full bg-blue-100 text-2xl font-bold text-blue-700">EU</div>
+                <div className="grid h-20 w-20 place-items-center rounded-full bg-blue-100 text-2xl font-bold text-blue-700">{getInitials(group.name)}</div>
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-950">Entrepreneurs Unite</h2>
-                  <p className="mt-1 text-sm text-slate-500">Business owners documenting the journey from idea to scale.</p>
-                  <span className="mt-4 inline-flex rounded-full bg-blue-100 px-5 py-2 text-xs font-bold text-blue-700">12.4K members</span>
+                  <h2 className="text-2xl font-bold text-slate-950">{group.name}</h2>
+                  <p className="mt-1 text-sm text-slate-500">{group.description}</p>
+                  <span className="mt-4 inline-flex rounded-full bg-blue-100 px-5 py-2 text-xs font-bold text-blue-700">{formatMemberCount(group.member_count)}</span>
                 </div>
               </div>
-              <button type="button" className="h-11 rounded-xl bg-blue-600 px-6 text-sm font-bold text-white">Joined</button>
+              <button
+                type="button"
+                onClick={handleJoin}
+                disabled={!token || group.is_member || joining}
+                className="h-11 rounded-xl bg-blue-600 px-6 text-sm font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {group.is_member ? 'Joined' : joining ? 'Joining...' : 'Join Group'}
+              </button>
             </div>
             <div className="mt-5 flex items-center gap-3 border-t border-slate-200 pt-4">
               <AvatarPlaceholder className="h-10 w-10" label="Marcus Holloway" />
-              <input className="h-11 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none focus:border-blue-500" placeholder="Share an update with Entrepreneurs Unite..." />
+              <input
+                value={postBody}
+                onChange={(event) => setPostBody(event.target.value)}
+                className="h-11 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none focus:border-blue-500"
+                placeholder={`Share an update with ${group.name}...`}
+              />
+              <button
+                type="button"
+                onClick={handleCreatePost}
+                disabled={!token || !postBody.trim() || posting}
+                className="h-11 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {posting ? 'Posting...' : 'Post'}
+              </button>
             </div>
           </Card>
-          {['Alicia Moore', 'David Chen'].map((name, index) => (
-            <Card key={name} className="p-5">
+          {posts.length > 0 ? posts.map((post) => {
+            const authorName = `${post.first_name || ''} ${post.last_name || ''}`.trim() || 'Group member'
+
+            return (
+            <Card key={post.id} className="p-5">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <AvatarPlaceholder className="h-10 w-10" label={name} />
+                  <AvatarPlaceholder className="h-10 w-10" label={authorName} />
                   <div>
-                    <p className="text-sm font-bold text-slate-900">{name}</p>
-                    <p className="text-xs text-slate-500">{index === 0 ? 'Growth Coach' : 'SaaS Founder'} - 2h</p>
+                    <p className="text-sm font-bold text-slate-900">{authorName}</p>
+                    <p className="text-xs text-slate-500">{formatActivityDate(post.created_at)}</p>
                   </div>
                 </div>
                 <span className="text-slate-400">...</span>
               </div>
-              <p className="mt-5 text-sm leading-6 text-slate-800">
-                {index === 0
-                  ? 'What is the one thing you did this week that moved your business forward? Drop it below so we can celebrate it together.'
-                  : 'I am rebuilding our onboarding flow and would appreciate feedback on which value point should lead the pitch.'}
-              </p>
-              <p className="mt-5 text-sm font-bold text-blue-600">{index === 0 ? '#GrowthWins' : '#BuildInPublic'}</p>
+              <p className="mt-5 text-sm leading-6 text-slate-800">{post.body}</p>
+              {getTopicText(group) ? <p className="mt-5 text-sm font-bold text-blue-600">#{getTopicText(group).replace(/\s+/g, '')}</p> : null}
               <div className="mt-5 flex items-center gap-8 border-t border-slate-100 pt-4 text-xs font-semibold text-slate-500">
-                <span>124 likes</span>
-                <span>58 comments</span>
-                <span>23 shares</span>
+                <span>{Number(post.reactions_count || 0).toLocaleString()} likes</span>
+                <span>{Number(post.comments_count || 0).toLocaleString()} comments</span>
+                <span>{Number(group.posts_count || 0).toLocaleString()} posts</span>
               </div>
             </Card>
-          ))}
+          )}) : (
+            <Card className="p-5 text-sm leading-6 text-slate-500">No group posts yet.</Card>
+          )}
         </div>
         <div className="space-y-4">
           <Card className="p-5">
             <SectionTitle title="Group Topics" />
             <div className="grid grid-cols-2 gap-3">
-              {['Business Growth', 'Funding', 'Marketing', 'Community'].map((item) => (
+              {(Array.isArray(group.topics) && group.topics.length > 0 ? group.topics : ['Community']).map((item) => (
                 <span key={item} className="rounded-full bg-blue-100 px-3 py-2 text-center text-xs font-bold text-blue-700">{item}</span>
               ))}
             </div>
           </Card>
           <Card className="p-5">
             <SectionTitle title="Upcoming in this group" />
-            {['Founder Feedback Friday', 'Funding Readiness AMA'].map((item) => (
-              <div key={item} className="mb-3 flex items-center justify-between rounded-xl border border-slate-200 p-3 last:mb-0">
+            {events.length > 0 ? events.map((item) => (
+              <div key={item.id || item.title} className="mb-3 flex items-center justify-between rounded-xl border border-slate-200 p-3 last:mb-0">
                 <div>
-                  <p className="text-sm font-bold text-slate-900">{item}</p>
-                  <p className="text-xs text-slate-500">Virtual - 6:00 PM EST</p>
+                  <p className="text-sm font-bold text-slate-900">{item.title}</p>
+                  <p className="text-xs text-slate-500">{item.location || 'Virtual'} - {formatActivityDate(item.starts_at || item.start_at)}</p>
                 </div>
                 <button type="button" className="h-9 rounded-lg border border-slate-200 px-3 text-xs font-bold text-blue-600">RSVP</button>
               </div>
-            ))}
+            )) : <p className="text-sm leading-6 text-slate-500">No events scheduled yet.</p>}
           </Card>
           <Card className="p-5">
-            <SectionTitle title="Group moderators" />
-            {['Alicia Moore', 'Michael Lee'].map((item) => (
-              <div key={item} className="mb-4 flex items-center gap-3 last:mb-0">
-                <AvatarPlaceholder className="h-10 w-10" label={item} />
-                <div>
-                  <p className="text-sm font-bold text-slate-900">{item}</p>
-                  <p className="text-xs text-slate-500">Community Moderator</p>
-                </div>
+            <SectionTitle title="Membership" />
+            <div className="grid gap-3">
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-2xl font-bold text-slate-950">{formatMemberCount(group.member_count)}</p>
+                <p className="mt-1 text-xs text-slate-500">{group.privacy} group</p>
               </div>
-            ))}
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-sm font-bold text-slate-900">{group.is_admin ? 'Admin access' : group.is_member ? 'Member access' : 'Visitor access'}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{group.welcome_prompt || 'Member role and moderator data will come from the Groups backend.'}</p>
+              </div>
+            </div>
           </Card>
         </div>
       </div>
@@ -544,13 +1079,83 @@ export function GroupDetailPage() {
   )
 }
 
-export function CreateGroupPage() {
+export function CreateGroupPage({ onNavigate }) {
+  const { token } = useAuth()
+  const [form, setForm] = useState({
+    name: '',
+    slug: '',
+    description: '',
+    privacy: 'public',
+    topics: '',
+    welcome_prompt: '',
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState(null)
+
+  const resolvedSlug = form.slug.trim() || toSlug(form.name)
+
+  function updateField(field, value) {
+    setForm((current) => ({ ...current, [field]: value }))
+  }
+
+  async function handleCreateGroup() {
+    if (!token || !form.name.trim()) {
+      setError(!token ? 'Sign in before creating a group.' : 'Group name is required.')
+      return
+    }
+
+    try {
+      setSubmitting(true)
+      setError(null)
+      const created = await groupsRepository.create(token, {
+        name: form.name.trim(),
+        slug: resolvedSlug,
+        description: form.description.trim() || null,
+        privacy: form.privacy,
+        topics: form.topics
+          .split(',')
+          .map((topic) => topic.trim())
+          .filter(Boolean),
+        welcome_prompt: form.welcome_prompt.trim() || null,
+        cover_media_id: null,
+      })
+
+      onNavigate?.(`/groups/${created.slug || created.id}`)
+    } catch (err) {
+      setError(err.message || 'Unable to create group.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
-    <FormShell title="Create a Group" description="Create a focused space for people, ideas, and business momentum." submitLabel="Create Group" checklist={['Set group purpose', 'Add topic guidelines', 'Invite early members']}>
-      <Field label="Group name" placeholder="Enter group name..." />
-      <Field label="Description" placeholder="Describe the audience, goals, and expectations..." textarea />
-      <Field label="Privacy" placeholder="Public, private, or invite-only" />
-      <Field label="Welcome prompt" placeholder="What should new members post first?" textarea rows={2} />
+    <FormShell
+      title="Create a Group"
+      description="Create a focused space for people, ideas, and business momentum."
+      submitLabel="Create Group"
+      checklist={['Set group purpose', 'Add topic guidelines', 'Invite early members']}
+      onSubmit={handleCreateGroup}
+      submitting={submitting}
+      submitDisabled={!form.name.trim() || submitting}
+    >
+      {error ? <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">{error}</div> : null}
+      <Field label="Group name" placeholder="Enter group name..." value={form.name} onChange={(event) => updateField('name', event.target.value)} />
+      <Field label="Slug" placeholder="founder-circle" value={resolvedSlug} onChange={(event) => updateField('slug', toSlug(event.target.value))} />
+      <Field label="Description" placeholder="Describe the audience, goals, and expectations..." textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} />
+      <label className="block">
+        <span className="mb-2 block text-xs font-bold text-slate-500">Privacy</span>
+        <select
+          value={form.privacy}
+          onChange={(event) => updateField('privacy', event.target.value)}
+          className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
+        >
+          <option value="public">Public</option>
+          <option value="private">Private</option>
+          <option value="invite_only">Invite only</option>
+        </select>
+      </label>
+      <Field label="Topics" placeholder="Funding, Marketing, Community" value={form.topics} onChange={(event) => updateField('topics', event.target.value)} />
+      <Field label="Welcome prompt" placeholder="What should new members post first?" textarea rows={2} value={form.welcome_prompt} onChange={(event) => updateField('welcome_prompt', event.target.value)} />
     </FormShell>
   )
 }

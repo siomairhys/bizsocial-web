@@ -569,20 +569,18 @@ Dashboard should read from module tables and optionally cache into `dashboard_sn
 | --- | --- | --- |
 | `GET` | `/bizbucks/wallet` | Wallet balance and limits. |
 | `GET` | `/bizbucks/transactions` | Transaction history. |
-| `POST` | `/bizbucks/purchases` | Buy BizBucks. |
+| `POST` | `/bizbucks/purchases/create-intent` | Create a pending static-package BizBucks purchase intent. |
 | `POST` | `/bizbucks/transfers` | Transfer or reward BizBucks. |
 
 ### Purchase payload
 
 ```json
 {
-  "package_id": "bb_1000",
-  "bizbucks_amount": 1000,
-  "price_amount": 90,
-  "currency": "USD",
-  "payment_method_id": "pm_123"
+  "package_id": "1000"
 }
 ```
+
+Current static package IDs are `"250"`, `"1000"`, and `"2500"`. Product/package records can be moved into a table later when product IDs are finalized.
 
 ### Transfer payload
 
@@ -590,7 +588,6 @@ Dashboard should read from module tables and optionally cache into `dashboard_sn
 {
   "recipient_user_id": 2,
   "amount": 50,
-  "reason": "reward",
   "note": "Helpful feedback on my pitch."
 }
 ```
@@ -599,9 +596,9 @@ Dashboard should read from module tables and optionally cache into `dashboard_sn
 
 | Table | Purpose |
 | --- | --- |
-| `bizbucks_wallets` | One wallet per user. |
-| `bizbucks_transactions` | Ledger entries. |
-| `bizbucks_packages` | Purchase package definitions. |
+| `credit_wallets` | One wallet per user. |
+| `credit_transactions` | Ledger entries. |
+| `bizbucks_purchases` | Pending and completed Stripe purchase records. |
 
 ## CredTrack
 
