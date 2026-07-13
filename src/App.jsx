@@ -145,11 +145,11 @@ function AppContent() {
     }
 
     if (route === '/events/create') {
-      return <CreateEventPage />
+      return <CreateEventPage onNavigate={navigateTo} />
     }
 
     if (route.startsWith('/events/')) {
-      return <EventDetailPage />
+      return <EventDetailPage eventSlug={route.replace('/events/', '')} />
     }
 
     if (route === '/courses') {
@@ -157,7 +157,7 @@ function AppContent() {
     }
 
     if (route.startsWith('/courses/')) {
-      return <CoursePlayerPage />
+      return <CoursePlayerPage courseSlug={route.replace('/courses/', '')} onNavigate={navigateTo} />
     }
 
     if (route === '/marketplace') {
@@ -165,11 +165,11 @@ function AppContent() {
     }
 
     if (route === '/marketplace/create') {
-      return <CreateMarketplaceListingPage />
+      return <CreateMarketplaceListingPage onNavigate={navigateTo} />
     }
 
     if (route.startsWith('/marketplace/')) {
-      return <MarketplaceListingDetailPage />
+      return <MarketplaceListingDetailPage listingSlug={route.replace('/marketplace/', '')} onNavigate={navigateTo} />
     }
 
     if (route === '/messages') {
@@ -177,7 +177,7 @@ function AppContent() {
     }
 
     if (route.startsWith('/messages/')) {
-      return <ChatThreadPage />
+      return <ChatThreadPage conversationId={route.replace('/messages/', '')} onNavigate={navigateTo} />
     }
 
     if (route === '/analytics') {

@@ -128,10 +128,10 @@ Use these columns on most primary tables unless there is a reason not to:
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | `GET` | `/profile/me` | Editable profile data. |
-| `PATCH` | `/profile` | Update editable profile data. |
-| `GET` | `/bizcard/me` | Current user's public BizCard. |
-| `PATCH` | `/bizcard` | Update BizCard public fields. |
-| `GET` | `/bizcard/public/:handle` | Public profile by handle. |
+| `PUT` | `/profile` | Update editable profile data. |
+| `GET` | `/profile/:userId` | Public BizCard-style profile by user id. |
+| `POST` | `/profile/:userId/follow` | Follow a profile. |
+| `DELETE` | `/profile/:userId/follow` | Unfollow a profile. |
 
 ### Update payload
 
@@ -145,10 +145,9 @@ Use these columns on most primary tables unless there is a reason not to:
   "industry": "Professional Services",
   "website": "https://hollowaydesigns.example",
   "location": "Atlanta, GA",
-  "photo_url": "https://cdn.example.com/avatar.png",
+  "avatar_url": "https://cdn.example.com/avatar.png",
   "cover_url": "https://cdn.example.com/cover.png",
-  "bio": "Short public business bio.",
-  "profile_visibility": "members_only"
+  "bio": "Short public business bio."
 }
 ```
 
@@ -156,25 +155,24 @@ Use these columns on most primary tables unless there is a reason not to:
 
 ```json
 {
-  "id": 1,
-  "handle": "marcus-holloway",
+  "user_id": 1,
   "first_name": "Marcus",
   "last_name": "Holloway",
   "business_name": "Holloway Designs LLC",
+  "role": "user",
+  "is_active": true,
+  "phone": "+15550000000",
   "title": "Founder",
-  "industry": "Professional Services",
-  "website": "https://hollowaydesigns.example",
-  "location": "Atlanta, GA",
-  "photo_url": "https://cdn.example.com/avatar.png",
-  "cover_url": "https://cdn.example.com/cover.png",
   "bio": "Short public business bio.",
-  "badges": ["Pitch Deck Approved", "Seller Verified", "Credit Ready"],
-  "metrics": {
-    "profile_views": 3764,
-    "followers": 2764,
-    "engagement_rate": 9.7,
-    "funding_raised": 24850
-  }
+  "avatar_url": "https://cdn.example.com/avatar.png",
+  "cover_url": "https://cdn.example.com/cover.png",
+  "industry": "Professional Services",
+  "location": "Atlanta, GA",
+  "website_url": "https://hollowaydesigns.example",
+  "follower_count": 2764,
+  "following_count": 128,
+  "created_at": "2026-06-26T23:33:20",
+  "updated_at": "2026-06-26T23:33:20"
 }
 ```
 
@@ -182,10 +180,8 @@ Use these columns on most primary tables unless there is a reason not to:
 
 | Table | Purpose |
 | --- | --- |
-| `profiles` | Editable personal and business profile fields. |
-| `bizcards` | Public-facing profile presentation. |
-| `bizcard_badges` | Public badges and trust marks. |
-| `profile_views` | View tracking for analytics. |
+| `user_profiles` | Editable personal and business profile fields. |
+| `user_social_links` | Optional profile social links. |
 | `follows` | User follow relationships. |
 
 ## Settings
@@ -202,12 +198,12 @@ Use these columns on most primary tables unless there is a reason not to:
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | `GET` | `/settings/account` | Account preferences. |
-| `PATCH` | `/settings/account` | Update account preferences. |
+| `PUT` | `/settings/account` | Update account preferences. |
 | `GET` | `/settings/notifications` | Notification preferences. |
-| `PATCH` | `/settings/notifications` | Update notifications. |
+| `PUT` | `/settings/notifications` | Update notifications. |
 | `GET` | `/settings/privacy` | Privacy settings. |
-| `PATCH` | `/settings/privacy` | Update privacy. |
-| `PATCH` | `/settings/password` | Change password. |
+| `PUT` | `/settings/privacy` | Update privacy. |
+| `POST` | `/settings/password` | Change password. |
 
 ### Payloads
 
@@ -244,9 +240,10 @@ Use these columns on most primary tables unless there is a reason not to:
 
 | Table | Purpose |
 | --- | --- |
-| `user_settings` | Account, locale, and privacy preferences. |
-| `notification_preferences` | Per-channel notification settings. |
-| `password_change_audit` | Security audit log. |
+| `user_account_settings` | Account and locale preferences. |
+| `user_notification_preferences` | Per-channel notification settings. |
+| `user_privacy_settings` | Profile visibility and messaging privacy. |
+| `audit_logs` | Security and settings audit trail. |
 
 ## Media
 
@@ -946,11 +943,13 @@ Current static package IDs are `"250"`, `"1000"`, and `"2500"`. Product/package 
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
-| `GET` | `/analytics/overview` | Metrics and charts. |
-| `GET` | `/analytics/content` | Top content. |
-| `GET` | `/analytics/export` | Export report. |
+| `GET` | `/analytics/overview?period=last_30_days` | Metrics, audience chart, top content, and audience mix. |
+| `GET` | `/analytics/content?limit=10&offset=0` | Paginated content performance rows. |
+| `GET` | `/analytics/export?period=last_30_days` | Export-ready analytics rows. |
 
-### Response shape
+Accepted `period` values: `last_7_days`, `last_30_days`, `last_90_days`.
+
+### Overview response
 
 ```json
 {
@@ -962,14 +961,84 @@ Current static package IDs are `"250"`, `"1000"`, and `"2500"`. Product/package 
     "funding_activity": { "value": 24850, "trend_percent": 18.7 }
   },
   "audience_growth": [
-    { "date": "2026-07-01", "followers": 120, "engagement": 80 }
+    {
+      "date": "2026-07-01",
+      "followers": 1200,
+      "engagement": 80,
+      "funding_activity": 450
+    }
   ],
-  "top_content": [],
+  "top_content": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "content_type": "post",
+      "content_id": 1001,
+      "title": "Design that drives growth",
+      "views_count": 2840,
+      "engagement_rate": 8.6,
+      "reactions_count": 184,
+      "comments_count": 42,
+      "shares_count": 31,
+      "amount_value": 0,
+      "deep_link": "/feed",
+      "last_activity_at": "2026-07-12T12:00:00Z",
+      "created_at": "2026-07-01T12:00:00Z",
+      "updated_at": "2026-07-12T12:00:00Z"
+    }
+  ],
   "audience_insights": {
     "entrepreneurs": 44,
     "creators": 28,
     "funders": 16
   }
+}
+```
+
+### Content response
+
+```json
+{
+  "limit": 10,
+  "offset": 0,
+  "total": 4,
+  "items": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "content_type": "post",
+      "content_id": 1001,
+      "title": "Design that drives growth",
+      "views_count": 2840,
+      "engagement_rate": 8.6,
+      "reactions_count": 184,
+      "comments_count": 42,
+      "shares_count": 31,
+      "amount_value": 0,
+      "deep_link": "/feed",
+      "last_activity_at": "2026-07-12T12:00:00Z",
+      "created_at": "2026-07-01T12:00:00Z",
+      "updated_at": "2026-07-12T12:00:00Z"
+    }
+  ]
+}
+```
+
+### Export response
+
+```json
+{
+  "period": "last_30_days",
+  "report_name": "bizsocials-analytics-last_30_days.json",
+  "generated_at": "2026-07-12T12:00:00Z",
+  "rows": [
+    {
+      "section": "metric",
+      "metric_key": "profile_views",
+      "label": "Profile Views",
+      "value_number": 3482
+    }
+  ]
 }
 ```
 
@@ -993,26 +1062,102 @@ Current static package IDs are `"250"`, `"1000"`, and `"2500"`. Product/package 
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
-| `GET` | `/bizquest/challenges` | Challenge list. |
+| `GET` | `/bizquest/challenges?status=active&limit=20&offset=0` | Challenge list. |
 | `GET` | `/bizquest/challenges/:challengeId` | Challenge detail. |
 | `POST` | `/bizquest/challenges/:challengeId/join` | Join challenge. |
 | `POST` | `/bizquest/challenges/:challengeId/entries` | Submit entry. |
 
-### Challenge response
+Accepted list `status` values: `active`, `all`, `draft`, `published`, `completed`, `archived`.
+
+### Challenge detail response
 
 ```json
 {
-  "id": "pitch-to-win",
+  "id": 1,
+  "slug": "pitch-to-win",
   "title": "Pitch to Win",
   "description": "Turn your business story into a stronger pitch.",
   "starts_at": "2026-07-01T00:00:00Z",
   "ends_at": "2026-07-31T23:59:59Z",
+  "status": "published",
+  "reward_summary": "Featured placement, BizBucks rewards, and a live pitch invitation.",
+  "sponsor_name": "BizSocials Growth Council",
+  "cover_media_id": null,
+  "cover_media_url": null,
+  "task_count": 4,
+  "total_points_available": 1100,
+  "participant_count": 32,
+  "entry_count": 18,
+  "viewer_status": "submitted",
+  "viewer_points": 900,
+  "viewer_entry_count": 1,
+  "viewer_latest_entry_id": 7,
+  "progress_percent": 82,
   "tasks": [
-    { "id": "create-pitch-reel", "title": "Create pitch reel", "points": 500 }
+    {
+      "id": 2,
+      "challenge_id": 1,
+      "task_key": "create-pitch-reel",
+      "title": "Create pitch reel",
+      "description": "Record or link a short pitch reel.",
+      "points": 500,
+      "sort_order": 2,
+      "viewer_completed": true,
+      "created_at": "2026-07-01T00:00:00Z",
+      "updated_at": "2026-07-01T00:00:00Z"
+    }
   ],
   "leaderboard": [
-    { "user_id": 1, "display_name": "Alicia Moore", "points": 1200 }
-  ]
+    {
+      "user_id": 1,
+      "display_name": "Alicia Moore",
+      "business_name": "AM Studio",
+      "points": 1200,
+      "entries_count": 1,
+      "last_points_at": "2026-07-12T12:00:00Z"
+    }
+  ],
+  "viewer_latest_entry": {
+    "id": 7,
+    "challenge_id": 1,
+    "challenge_slug": "pitch-to-win",
+    "challenge_title": "Pitch to Win",
+    "user_id": 1,
+    "pitch_reel_id": 901,
+    "summary": "My challenge submission.",
+    "media_ids": [],
+    "status": "submitted",
+    "submitted_at": "2026-07-12T12:00:00Z",
+    "updated_at": "2026-07-12T12:00:00Z"
+  },
+  "created_at": "2026-07-01T00:00:00Z",
+  "updated_at": "2026-07-12T12:00:00Z"
+}
+```
+
+### List response
+
+```json
+{
+  "status": "active",
+  "limit": 20,
+  "offset": 0,
+  "total": 1,
+  "items": []
+}
+```
+
+### Join response
+
+```json
+{
+  "id": 1,
+  "challenge_id": 1,
+  "user_id": 1,
+  "status": "joined",
+  "points": 100,
+  "joined_at": "2026-07-12T12:00:00Z",
+  "updated_at": "2026-07-12T12:00:00Z"
 }
 ```
 
@@ -1020,9 +1165,27 @@ Current static package IDs are `"250"`, `"1000"`, and `"2500"`. Product/package 
 
 ```json
 {
-  "pitch_reel_id": "901",
+  "pitch_reel_id": 901,
   "summary": "My challenge submission.",
-  "media_ids": ["902"]
+  "media_ids": [902]
+}
+```
+
+### Entry response
+
+```json
+{
+  "id": 21,
+  "challenge_id": 1,
+  "challenge_slug": "pitch-to-win",
+  "challenge_title": "Pitch to Win",
+  "user_id": 1,
+  "pitch_reel_id": 901,
+  "summary": "My challenge submission.",
+  "media_ids": [902],
+  "status": "submitted",
+  "submitted_at": "2026-07-12T12:00:00Z",
+  "updated_at": "2026-07-12T12:00:00Z"
 }
 ```
 
@@ -1048,31 +1211,104 @@ Current static package IDs are `"250"`, `"1000"`, and `"2500"`. Product/package 
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
-| `GET` | `/sponsors/impact` | Sponsor impact overview. |
-| `GET` | `/sponsors/campaigns` | Sponsor campaign list. |
-| `GET` | `/sponsors/impact/export` | Export impact report. |
+| `GET` | `/sponsors/impact?period=last_30_days` | Sponsor impact overview. |
+| `GET` | `/sponsors/campaigns?status=active&limit=20&offset=0` | Sponsor campaign list. |
+| `GET` | `/sponsors/impact/export?period=last_30_days` | Export impact report. |
 
-### Response shape
+Accepted `period` values: `last_7_days`, `last_30_days`, `last_90_days`.
+
+Accepted campaign `status` values: `active`, `paused`, `completed`, `draft`, `all`.
+
+### Overview response
 
 ```json
 {
+  "period": "last_30_days",
   "metrics": {
-    "founders_supported": 300,
-    "campaign_reach": 82000,
-    "funding_facilitated": 240000,
-    "active_sponsors": 21
+    "founders_supported": { "value": 300, "trend_percent": 44 },
+    "campaign_reach": { "value": 82000, "trend_percent": 29 },
+    "funding_facilitated": { "value": 240000, "trend_percent": 18 },
+    "active_sponsors": { "value": 21, "trend_percent": 8 }
   },
   "founder_outcomes": [
     {
+      "outcome_key": "pitch_readiness_unlocked",
       "label": "Pitch readiness unlocked",
+      "value": 120,
       "trend_percent": 12
     }
   ],
   "featured_founder_stories": [
     {
+      "id": 1,
       "user_id": 1,
       "display_name": "Alicia Moore",
-      "milestone": "Growth milestone reached"
+      "business_name": "AM Studio",
+      "milestone": "Growth milestone reached",
+      "event_type": "pitch_ready",
+      "event_value": 1,
+      "campaign_id": 1,
+      "campaign_slug": "underserved-business-credit-access",
+      "campaign_title": "Underserved Business Credit Access",
+      "sponsor_name": "Fundable Futures",
+      "event_at": "2026-07-12T12:00:00Z"
+    }
+  ]
+}
+```
+
+### Campaign list response
+
+```json
+{
+  "status": "active",
+  "limit": 20,
+  "offset": 0,
+  "total": 3,
+  "items": [
+    {
+      "id": 1,
+      "sponsor_account_id": 1,
+      "sponsor_name": "Fundable Futures",
+      "sponsor_slug": "fundable-futures",
+      "sponsor_tier": "title",
+      "slug": "underserved-business-credit-access",
+      "title": "Underserved Business Credit Access",
+      "description": "Helping founders improve funding readiness and lender visibility.",
+      "status": "active",
+      "starts_at": "2026-07-01T00:00:00Z",
+      "ends_at": "2026-09-30T23:59:59Z",
+      "budget_amount": 125000,
+      "currency": "USD",
+      "target_founders": 350,
+      "target_reach": 90000,
+      "target_funding_amount": 250000,
+      "founders_supported": 300,
+      "campaign_reach": 82000,
+      "funding_facilitated": 240000,
+      "pitch_readiness_unlocked": 120,
+      "founder_progress_percent": 86,
+      "reach_progress_percent": 91,
+      "created_at": "2026-07-01T00:00:00Z",
+      "updated_at": "2026-07-12T12:00:00Z"
+    }
+  ]
+}
+```
+
+### Export response
+
+```json
+{
+  "period": "last_30_days",
+  "report_name": "bizsocials-sponsor-impact-last_30_days.json",
+  "generated_at": "2026-07-12T12:00:00Z",
+  "rows": [
+    {
+      "section": "metric",
+      "metric_key": "founders_supported",
+      "label": "Founders Supported",
+      "value_number": 300
     }
   ]
 }

@@ -64,10 +64,6 @@ function getAuthorRole(post) {
   return post.author_title || post.author_business_name || 'BizSocials Member'
 }
 
-function getPrimaryMedia(post) {
-  return Array.isArray(post.media) && post.media.length > 0 ? post.media[0] : null
-}
-
 function getAllMedia(post) {
   return Array.isArray(post.media) ? post.media.filter((m) => getMediaUrl(m)) : []
 }
@@ -283,17 +279,6 @@ function FeedPage({ onNavigate }) {
         setAttachedMedia((a) => a.filter((m) => m.mediaId !== toRemove.mediaId))
       }
       return current
-    })
-  }
-
-  function removeAttachedMedia(mediaId) {
-    setAttachedMedia((current) => current.filter((item) => item.mediaId !== mediaId))
-    setPendingFiles((current) => {
-      const match = current.find((f) => f.mediaId === mediaId)
-      if (match?.previewUrl) {
-        URL.revokeObjectURL(match.previewUrl)
-      }
-      return current.filter((f) => f.mediaId !== mediaId)
     })
   }
 

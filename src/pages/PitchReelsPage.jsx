@@ -29,8 +29,9 @@ function PitchReelModal({ item, onClose }) {
 
   // Pause video when modal closes
   useEffect(() => {
+    const videoElement = videoRef.current
     return () => {
-      videoRef.current?.pause()
+      videoElement?.pause()
     }
   }, [])
 

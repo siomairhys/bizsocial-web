@@ -82,6 +82,7 @@ export const apiEndpoints = Object.freeze({
     list: '/events',
     create: '/events',
     byId: (eventId) => `/events/${eventId}`,
+    bySlug: (slug) => `/events/slug/${slug}`,
     rsvp: (eventId) => `/events/${eventId}/rsvp`,
   }),
   courses: Object.freeze({
@@ -106,11 +107,6 @@ export const apiEndpoints = Object.freeze({
     overview: '/analytics/overview',
     content: '/analytics/content',
     export: '/analytics/export',
-  }),
-  bizcard: Object.freeze({
-    me: '/bizcard/me',
-    update: '/bizcard',
-    publicByHandle: (handle) => `/bizcard/public/${handle}`,
   }),
   bizquest: Object.freeze({
     challenges: '/bizquest/challenges',
