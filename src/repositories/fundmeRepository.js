@@ -6,9 +6,10 @@ import {
   defaultFundMeCampaigns,
   defaultFundMeFeatured,
 } from '../data/defaultSeedData'
+import { presentationDataOrThrow } from '../services/presentationData'
 
 const ENABLE_FUNDME_API =
-  (import.meta.env.VITE_ENABLE_FUNDME_API || 'false').toLowerCase() === 'true'
+  (import.meta.env.VITE_ENABLE_FUNDME_API || 'true').toLowerCase() === 'true'
 
 const staticCampaigns = defaultFundMeCampaigns
 
@@ -106,18 +107,18 @@ export const fundmeRepository = {
         source: 'api',
         tabs: ['discover', 'my-campaigns', 'supported', 'following'],
         campaigns: items,
-        featured: staticFeatured,
+        featured: items.slice(0, 3),
         activity: activityItems,
       }
     }
 
-    return {
+    return presentationDataOrThrow(token, {
       source: 'static',
       tabs: ['discover', 'my-campaigns', 'supported', 'following'],
       campaigns: staticCampaigns,
       featured: staticFeatured,
       activity: staticActivity,
-    }
+    }, null, 'FundMe live data is not enabled for this account.')
   },
 
   async getCampaignDetail({ token, campaignId } = {}) {
@@ -144,10 +145,10 @@ export const fundmeRepository = {
         updates: Array.isArray(detail.updates) ? detail.updates : [],
         suggestedContributions: Array.isArray(detail.suggested_contributions)
           ? detail.suggested_contributions
-          : staticDetails['1'].suggestedContributions,
+          : [],
       }
     }
 
-    return staticDetails[String(campaignId)] || staticDetails['1']
+    return presentationDataOrThrow(token, () => staticDetails[String(campaignId)] || staticDetails['1'], null, 'FundMe live data is not enabled for this account.')
   },
 }

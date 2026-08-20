@@ -1,6 +1,7 @@
 import { apiEndpoints } from './apiEndpoints'
 import { httpClient } from '../services/httpClient'
 import { defaultDashboardOverview } from '../data/defaultSeedData'
+import { presentationDataOrThrow } from '../services/presentationData'
 
 function numberWithCommas(value) {
   return Number(value || 0).toLocaleString()
@@ -172,14 +173,14 @@ function mapOverview(payload) {
 export const dashboardRepository = {
   async getOverview(token) {
     if (!token) {
-      return defaultDashboardOverview
+      return presentationDataOrThrow(token, defaultDashboardOverview, null, 'Dashboard data requires an authenticated account.')
     }
 
     try {
       const payload = await httpClient.get(apiEndpoints.dashboard.overview, { token })
       return mapOverview(payload)
-    } catch {
-      return defaultDashboardOverview
+    } catch (error) {
+      return presentationDataOrThrow(token, defaultDashboardOverview, error)
     }
   },
 }

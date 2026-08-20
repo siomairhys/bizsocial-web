@@ -1,5 +1,6 @@
 import { httpClient } from '../services/httpClient'
 import { apiEndpoints } from './apiEndpoints'
+import { presentationDataOrThrow } from '../services/presentationData'
 
 const fallbackActions = [
   {
@@ -145,27 +146,27 @@ const fallbackActionPlan = {
 export const credtrackRepository = {
   async getOverview(token) {
     if (!token) {
-      return fallbackOverview
+      return presentationDataOrThrow(token, fallbackOverview, null, 'CredTrack data requires an authenticated account.')
     }
 
     try {
       return await httpClient.get(apiEndpoints.credtrack.overview, { token })
     } catch (error) {
       console.error('Failed to fetch CredTrack overview:', error)
-      return fallbackOverview
+      return presentationDataOrThrow(token, fallbackOverview, error)
     }
   },
 
   async getActionPlan(token) {
     if (!token) {
-      return fallbackActionPlan
+      return presentationDataOrThrow(token, fallbackActionPlan, null, 'CredTrack data requires an authenticated account.')
     }
 
     try {
       return await httpClient.get(apiEndpoints.credtrack.actionPlan, { token })
     } catch (error) {
       console.error('Failed to fetch CredTrack action plan:', error)
-      return fallbackActionPlan
+      return presentationDataOrThrow(token, fallbackActionPlan, error)
     }
   },
 

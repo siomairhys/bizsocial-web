@@ -1,5 +1,6 @@
 import { httpClient } from '../services/httpClient'
 import { apiEndpoints } from './apiEndpoints'
+import { presentationDataOrThrow } from '../services/presentationData'
 
 const fallbackGrowth = Array.from({ length: 10 }, (_, index) => ({
   date: `2026-07-${String(index + 1).padStart(2, '0')}`,
@@ -103,40 +104,40 @@ function fallbackExport(period = 'last_30_days') {
 export const analyticsRepository = {
   async getOverview(token, { period = 'last_30_days' } = {}) {
     if (!token) {
-      return { ...fallbackOverview, period }
+      return presentationDataOrThrow(token, { ...fallbackOverview, period }, null, 'Analytics requires an authenticated account.')
     }
 
     try {
       return await httpClient.get(`${apiEndpoints.analytics.overview}?period=${encodeURIComponent(period)}`, { token })
     } catch (error) {
       console.error('Failed to fetch analytics overview:', error)
-      return { ...fallbackOverview, period }
+      return presentationDataOrThrow(token, { ...fallbackOverview, period }, error)
     }
   },
 
   async getContent(token, { limit = 10, offset = 0 } = {}) {
     if (!token) {
-      return { ...fallbackContent, limit, offset }
+      return presentationDataOrThrow(token, { ...fallbackContent, limit, offset }, null, 'Analytics requires an authenticated account.')
     }
 
     try {
       return await httpClient.get(`${apiEndpoints.analytics.content}?limit=${limit}&offset=${offset}`, { token })
     } catch (error) {
       console.error('Failed to fetch analytics content:', error)
-      return { ...fallbackContent, limit, offset }
+      return presentationDataOrThrow(token, { ...fallbackContent, limit, offset }, error)
     }
   },
 
   async exportReport(token, { period = 'last_30_days' } = {}) {
     if (!token) {
-      return fallbackExport(period)
+      return presentationDataOrThrow(token, () => fallbackExport(period), null, 'Analytics export requires an authenticated account.')
     }
 
     try {
       return await httpClient.get(`${apiEndpoints.analytics.export}?period=${encodeURIComponent(period)}`, { token })
     } catch (error) {
       console.error('Failed to export analytics report:', error)
-      return fallbackExport(period)
+      return presentationDataOrThrow(token, () => fallbackExport(period), error)
     }
   },
 }

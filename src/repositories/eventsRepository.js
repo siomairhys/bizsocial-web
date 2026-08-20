@@ -1,5 +1,6 @@
 import { httpClient } from '../services/httpClient'
 import { apiEndpoints } from './apiEndpoints'
+import { presentationDataOrThrow } from '../services/presentationData'
 
 const fallbackEvents = {
   tab: 'upcoming',
@@ -116,7 +117,7 @@ export const eventsRepository = {
       )
     } catch (error) {
       console.error('Failed to fetch events:', error)
-      return { ...fallbackEvents, tab, limit, offset }
+      return presentationDataOrThrow(token, { ...fallbackEvents, tab, limit, offset }, error)
     }
   },
 
@@ -129,7 +130,7 @@ export const eventsRepository = {
       return await httpClient.get(endpoint, { token })
     } catch (error) {
       console.error(`Failed to fetch event ${identifier}:`, error)
-      return fallbackDetail(identifier)
+      return presentationDataOrThrow(token, () => fallbackDetail(identifier), error)
     }
   },
 

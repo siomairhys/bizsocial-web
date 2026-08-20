@@ -1,6 +1,7 @@
 import { seedImages } from '../data/defaultSeedData'
 import { httpClient } from '../services/httpClient'
 import { apiEndpoints } from './apiEndpoints'
+import { presentationDataOrThrow } from '../services/presentationData'
 
 const fallbackCourses = {
   filter: 'recommended',
@@ -301,7 +302,7 @@ function fallbackProgress(identifier, payload) {
 export const coursesRepository = {
   async getList({ token, filter = 'recommended', limit = 20, offset = 0 } = {}) {
     if (!token) {
-      return getFallbackList({ filter, limit, offset })
+      return presentationDataOrThrow(token, () => getFallbackList({ filter, limit, offset }), null, 'Courses require an authenticated account.')
     }
 
     try {
@@ -311,39 +312,39 @@ export const coursesRepository = {
       )
     } catch (error) {
       console.error('Failed to fetch courses:', error)
-      return getFallbackList({ filter, limit, offset })
+      return presentationDataOrThrow(token, () => getFallbackList({ filter, limit, offset }), error)
     }
   },
 
   async getDetail(identifier, { token } = {}) {
     if (!token) {
-      return getFallbackDetail(identifier)
+      return presentationDataOrThrow(token, () => getFallbackDetail(identifier), null, 'Courses require an authenticated account.')
     }
 
     try {
       return await httpClient.get(apiEndpoints.courses.byId(identifier), { token })
     } catch (error) {
       console.error(`Failed to fetch course ${identifier}:`, error)
-      return getFallbackDetail(identifier)
+      return presentationDataOrThrow(token, () => getFallbackDetail(identifier), error)
     }
   },
 
   async saveProgress(token, identifier, progressData) {
     if (!token) {
-      return fallbackProgress(identifier, progressData)
+      return presentationDataOrThrow(token, () => fallbackProgress(identifier, progressData), null, 'Course progress requires an authenticated account.')
     }
 
     try {
       return await httpClient.patch(apiEndpoints.courses.progress(identifier), progressData, { token })
     } catch (error) {
       console.error(`Failed to save course progress for ${identifier}:`, error)
-      return fallbackProgress(identifier, progressData)
+      return presentationDataOrThrow(token, () => fallbackProgress(identifier, progressData), error)
     }
   },
 
   async addNote(token, identifier, noteData) {
     if (!token) {
-      return {
+      return presentationDataOrThrow(token, {
         id: Date.now(),
         course_id: isNumericIdentifier(identifier) ? Number(identifier) : getFallbackDetail(identifier).id,
         lesson_id: null,
@@ -352,14 +353,14 @@ export const coursesRepository = {
         note: noteData.note,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      }
+      }, null, 'Course notes require an authenticated account.')
     }
 
     try {
       return await httpClient.post(apiEndpoints.courses.notes(identifier), noteData, { token })
     } catch (error) {
       console.error(`Failed to save course note for ${identifier}:`, error)
-      return {
+      return presentationDataOrThrow(token, {
         id: Date.now(),
         course_id: isNumericIdentifier(identifier) ? Number(identifier) : getFallbackDetail(identifier).id,
         lesson_id: null,
@@ -368,7 +369,7 @@ export const coursesRepository = {
         note: noteData.note,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      }
+      }, error)
     }
   },
 }

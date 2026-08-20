@@ -1,5 +1,6 @@
 import { httpClient } from '../services/httpClient'
 import { apiEndpoints } from './apiEndpoints'
+import { presentationDataOrThrow } from '../services/presentationData'
 
 const fallbackConversationList = {
   limit: 20,
@@ -134,27 +135,27 @@ function fallbackConversationDetail(conversationId) {
 export const messagesRepository = {
   async listConversations(token, { limit = 20, offset = 0 } = {}) {
     if (!token) {
-      return { ...fallbackConversationList, limit, offset }
+      return presentationDataOrThrow(token, { ...fallbackConversationList, limit, offset }, null, 'Messages require an authenticated account.')
     }
 
     try {
       return await httpClient.get(`${apiEndpoints.messages.conversations}?limit=${limit}&offset=${offset}`, { token })
     } catch (error) {
       console.error('Failed to fetch conversations:', error)
-      return { ...fallbackConversationList, limit, offset }
+      return presentationDataOrThrow(token, { ...fallbackConversationList, limit, offset }, error)
     }
   },
 
   async getConversation(token, conversationId, { limit = 50, offset = 0 } = {}) {
     if (!token) {
-      return fallbackConversationDetail(conversationId)
+      return presentationDataOrThrow(token, () => fallbackConversationDetail(conversationId), null, 'Messages require an authenticated account.')
     }
 
     try {
       return await httpClient.get(`${apiEndpoints.messages.byId(conversationId)}?limit=${limit}&offset=${offset}`, { token })
     } catch (error) {
       console.error(`Failed to fetch conversation ${conversationId}:`, error)
-      return fallbackConversationDetail(conversationId)
+      return presentationDataOrThrow(token, () => fallbackConversationDetail(conversationId), error)
     }
   },
 

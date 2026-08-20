@@ -1,6 +1,7 @@
 import { apiEndpoints } from './apiEndpoints'
 import { httpClient } from '../services/httpClient'
 import { defaultLivePitchSession, defaultLivePitchesOverview } from '../data/defaultSeedData'
+import { presentationDataOrThrow } from '../services/presentationData'
 
 export const LIVE_PITCHES_LIST_ENDPOINT_PLACEHOLDER = apiEndpoints.livePitches.list
 export const LIVE_PITCHES_VOTE_ENDPOINT_PLACEHOLDER = apiEndpoints.livePitches.vote(':livePitchId')
@@ -85,8 +86,8 @@ function toOverviewUiPayload(apiListResponse, leaderboardItems = []) {
       sessionId: Number(liveSession.id),
       title: String(liveSession?.title || 'Live Pitch Session'),
       watching: Number(liveSession?.watching_count || 0),
-      ctaLabel: staticOverview.event.ctaLabel,
-      imageUrl: liveSession?.image_url || liveSession?.cover_image_url || staticOverview.event.imageUrl,
+      ctaLabel: 'Watch Live Pitch',
+      imageUrl: liveSession?.image_url || liveSession?.cover_image_url || '',
     },
     battles: mapBattlesFromLeaderboard(leaderboardItems),
     upcoming: upcomingSessions,
@@ -141,21 +142,21 @@ function toSessionUiPayload(apiSession) {
     entries[0]
 
   return {
-    id: session.id ? `lp-${session.id}` : staticSession.id,
-    sessionId: Number.isFinite(Number(session.id)) ? Number(session.id) : staticSession.sessionId,
-    title: session.title || staticSession.title,
-    watching: Number.isFinite(Number(session.watching_count)) ? Number(session.watching_count) : staticSession.watching,
-    heroImageUrl: session.image_url || session.cover_image_url || staticSession.heroImageUrl,
+    id: session.id ? `lp-${session.id}` : 'lp-none',
+    sessionId: Number.isFinite(Number(session.id)) ? Number(session.id) : null,
+    title: session.title || 'Live Pitch Session',
+    watching: Number.isFinite(Number(session.watching_count)) ? Number(session.watching_count) : 0,
+    heroImageUrl: session.image_url || session.cover_image_url || '',
     currentPitch: {
       entryId: Number.isFinite(Number(currentEntry?.id))
         ? Number(currentEntry.id)
         : Number.isFinite(Number(session.current_entry?.entry_id))
           ? Number(session.current_entry.entry_id)
-          : staticSession.currentPitch.entryId,
-      name: currentEntry?.display_name || session.current_entry?.name || staticSession.currentPitch.name,
-      headline: currentEntry?.headline || session.current_entry?.headline || staticSession.currentPitch.headline,
-      summary: currentEntry?.summary || staticSession.currentPitch.summary,
-      score: Number.isFinite(Number(currentEntry?.score)) ? Number(currentEntry.score) : staticSession.currentPitch.score,
+          : null,
+      name: currentEntry?.display_name || session.current_entry?.name || 'Waiting for the next presenter',
+      headline: currentEntry?.headline || session.current_entry?.headline || '',
+      summary: currentEntry?.summary || '',
+      score: Number.isFinite(Number(currentEntry?.score)) ? Number(currentEntry.score) : 0,
     },
     chat: chatItems.map((item) => ({
       id: String(item.id),
@@ -228,12 +229,12 @@ export const livePitchesRepository = {
           endpoint: LIVE_PITCHES_LIST_ENDPOINT_PLACEHOLDER,
           ...toOverviewUiPayload(listResponse, leaderboardItems),
         }
-      } catch {
-        return getStaticOverviewPayload()
+      } catch (error) {
+        return presentationDataOrThrow(token, getStaticOverviewPayload, error)
       }
     }
 
-    return getStaticOverviewPayload()
+    return presentationDataOrThrow(token, getStaticOverviewPayload, null, 'Live Pitches API is disabled for this account.')
   },
 
   async getSession({ token, livePitchId = 1 } = {}) {
@@ -250,11 +251,11 @@ export const livePitchesRepository = {
           chatEndpoint: LIVE_PITCHES_CHAT_ENDPOINT_PLACEHOLDER,
           ...uiPayload,
         }
-      } catch {
-        return getStaticSessionPayload()
+      } catch (error) {
+        return presentationDataOrThrow(token, getStaticSessionPayload, error)
       }
     }
 
-    return getStaticSessionPayload()
+    return presentationDataOrThrow(token, getStaticSessionPayload, null, 'Live Pitches API is disabled for this account.')
   },
 }

@@ -1,5 +1,6 @@
 import { apiEndpoints } from './apiEndpoints'
 import { httpClient } from '../services/httpClient'
+import { presentationDataOrThrow } from '../services/presentationData'
 
 /**
  * Static fallback wallet data
@@ -71,14 +72,14 @@ export const bizbucksRepository = {
    */
   async getWallet(token) {
     if (!token) {
-      return defaultWallet
+      return presentationDataOrThrow(token, defaultWallet, null, 'Wallet data requires an authenticated account.')
     }
 
     try {
       return await httpClient.get(apiEndpoints.bizbucks.wallet, { token })
     } catch (error) {
       console.warn('Failed to fetch wallet, using default data:', error)
-      return defaultWallet
+      return presentationDataOrThrow(token, defaultWallet, error)
     }
   },
 
@@ -92,7 +93,7 @@ export const bizbucksRepository = {
    */
   async listTransactions(token, { limit = 20, offset = 0 } = {}) {
     if (!token) {
-      return defaultTransactions.slice(offset, offset + limit)
+      return presentationDataOrThrow(token, () => defaultTransactions.slice(offset, offset + limit), null, 'Transactions require an authenticated account.')
     }
 
     try {
@@ -100,7 +101,7 @@ export const bizbucksRepository = {
       return await httpClient.get(url, { token })
     } catch (error) {
       console.warn('Failed to fetch transactions, using default data:', error)
-      return defaultTransactions.slice(offset, offset + limit)
+      return presentationDataOrThrow(token, () => defaultTransactions.slice(offset, offset + limit), error)
     }
   },
 

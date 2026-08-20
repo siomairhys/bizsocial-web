@@ -1,70 +1,53 @@
 import { apiEndpoints } from './apiEndpoints'
 import { httpClient } from '../services/httpClient'
-import { defaultAccount, defaultFeedPosts, defaultTrendingTopics } from '../data/defaultSeedData'
+import { defaultFeedPosts, defaultTrendingTopics } from '../data/defaultSeedData'
+import { presentationDataOrThrow } from '../services/presentationData'
 
-function buildFeedPath(tab, limit, offset) {
-  return `${apiEndpoints.feed.list}?tab=${encodeURIComponent(tab)}&limit=${limit}&offset=${offset}`
-}
-
-function getStaticPosts(tab, limit, offset) {
-  const filtered =
-    tab === 'for_you'
-      ? defaultFeedPosts
-      : defaultFeedPosts.filter((post) => Array.isArray(post.tabs) && post.tabs.includes(tab))
-
-  return {
-    source: 'static',
-    items: filtered.slice(offset, offset + limit),
-    total: filtered.length,
-  }
+function buildFeedPath({ tab, limit, cursor, topic }) {
+  const params = new URLSearchParams({ tab, limit: String(limit) })
+  if (cursor) params.set('cursor', cursor)
+  if (topic) params.set('topic', topic.replace(/^#/, ''))
+  return `${apiEndpoints.feed.list}?${params.toString()}`
 }
 
 export const feedRepository = {
-  async list(token, { tab = 'for_you', limit = 20, offset = 0 } = {}) {
-    if (!token) {
-      return getStaticPosts(tab, limit, offset)
-    }
-
+  async list(token, { tab = 'for_you', limit = 10, cursor = null, topic = null } = {}) {
     try {
-      return await httpClient.get(buildFeedPath(tab, limit, offset), { token })
-    } catch {
-      return getStaticPosts(tab, limit, offset)
+      return await httpClient.get(buildFeedPath({ tab, limit, cursor, topic }), { token })
+    } catch (error) {
+      const normalizedTopic = String(topic || '').replace(/^#/, '').toLowerCase()
+      const items = defaultFeedPosts.filter((post) => {
+        const matchesTab = tab === 'for_you' || post.tabs?.includes(tab)
+        const matchesTopic = !normalizedTopic || String(post.content || '').toLowerCase().includes(`#${normalizedTopic}`)
+        return matchesTab && matchesTopic
+      }).slice(0, limit)
+
+      return presentationDataOrThrow(token, { tab, limit, items, next_cursor: null }, error)
     }
   },
 
   async listTrendingTopics(token, { limit = 10 } = {}) {
-    if (!token) {
-      return defaultTrendingTopics.slice(0, limit)
-    }
-
     try {
       return await httpClient.get(`${apiEndpoints.feed.trendingTopics}?limit=${limit}`, { token })
-    } catch {
-      return defaultTrendingTopics.slice(0, limit)
+    } catch (error) {
+      return presentationDataOrThrow(token, () => defaultTrendingTopics.slice(0, limit), error)
     }
   },
 
-  async createPost(token, payload) {
-    try {
-      return await httpClient.post(apiEndpoints.posts.create, payload, { token })
-    } catch {
-      return {
-        id: `local-post-${Date.now()}`,
-        author_first_name: defaultAccount.first_name,
-        author_last_name: defaultAccount.last_name,
-        author_title: defaultAccount.title,
-        author_business_name: defaultAccount.business_name,
-        author_avatar_url: defaultAccount.avatar_url,
-        created_at: new Date().toISOString(),
-        content: payload?.content || '',
-        media: [],
-        reactions_count: 0,
-        comments_count: 0,
-        shares_count: 0,
-        viewer_reacted: false,
-        media_count: 0,
-      }
-    }
+  createPost(token, payload) {
+    return httpClient.post(apiEndpoints.posts.create, payload, { token })
+  },
+
+  getPost(token, postId) {
+    return httpClient.get(apiEndpoints.posts.byId(postId), { token })
+  },
+
+  updatePost(token, postId, payload) {
+    return httpClient.patch(apiEndpoints.posts.byId(postId), payload, { token })
+  },
+
+  deletePost(token, postId) {
+    return httpClient.delete(apiEndpoints.posts.byId(postId), { token })
   },
 
   getMyDraft(token) {
@@ -79,20 +62,34 @@ export const feedRepository = {
     return httpClient.delete(apiEndpoints.posts.draftMe, { token })
   },
 
-  async toggleReaction(token, postId, reactionType = 'like') {
-    try {
-      return await httpClient.post(
-        apiEndpoints.posts.react(postId),
-        { reaction_type: reactionType },
-        { token },
-      )
-    } catch {
-      return {
-        reactions_count: 1,
-        comments_count: 0,
-        shares_count: 0,
-        viewer_reacted: reactionType === 'like',
-      }
-    }
+  toggleReaction(token, postId, reactionType = 'like') {
+    return httpClient.post(
+      apiEndpoints.posts.react(postId),
+      { reaction_type: reactionType },
+      { token },
+    )
+  },
+
+  listComments(token, postId, { limit = 50, offset = 0 } = {}) {
+    return httpClient.get(
+      `${apiEndpoints.posts.comments(postId)}?limit=${limit}&offset=${offset}`,
+      { token },
+    )
+  },
+
+  createComment(token, postId, body, parentCommentId = null) {
+    return httpClient.post(
+      apiEndpoints.posts.comments(postId),
+      { body, parent_comment_id: parentCommentId },
+      { token },
+    )
+  },
+
+  deleteComment(token, postId, commentId) {
+    return httpClient.delete(apiEndpoints.posts.commentById(postId, commentId), { token })
+  },
+
+  sharePost(token, postId, payload = { share_type: 'repost' }) {
+    return httpClient.post(apiEndpoints.posts.shares(postId), payload, { token })
   },
 }

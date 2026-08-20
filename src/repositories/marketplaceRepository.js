@@ -1,6 +1,7 @@
 import { seedImages } from '../data/defaultSeedData'
 import { httpClient } from '../services/httpClient'
 import { apiEndpoints } from './apiEndpoints'
+import { presentationDataOrThrow } from '../services/presentationData'
 
 const fallbackListings = {
   category: 'all',
@@ -225,7 +226,7 @@ export const marketplaceRepository = {
       return await httpClient.get(endpoint, { token })
     } catch (error) {
       console.error('Failed to fetch marketplace listings:', error)
-      return getFallbackList({ category, search, limit, offset })
+      return presentationDataOrThrow(token, () => getFallbackList({ category, search, limit, offset }), error)
     }
   },
 
@@ -234,20 +235,20 @@ export const marketplaceRepository = {
       return await httpClient.get(apiEndpoints.marketplace.byId(identifier), { token })
     } catch (error) {
       console.error(`Failed to fetch marketplace listing ${identifier}:`, error)
-      return getFallbackDetail(identifier)
+      return presentationDataOrThrow(token, () => getFallbackDetail(identifier), error)
     }
   },
 
   async create(token, listingData) {
     if (!token) {
-      return fallbackCreatedListing(listingData)
+      return presentationDataOrThrow(token, () => fallbackCreatedListing(listingData), null, 'Creating a listing requires an authenticated account.')
     }
 
     try {
       return await httpClient.post(apiEndpoints.marketplace.create, listingData, { token })
     } catch (error) {
       console.error('Failed to create marketplace listing:', error)
-      return fallbackCreatedListing(listingData)
+      return presentationDataOrThrow(token, () => fallbackCreatedListing(listingData), error)
     }
   },
 
@@ -256,7 +257,7 @@ export const marketplaceRepository = {
       return await httpClient.post(apiEndpoints.marketplace.purchase(identifier), purchaseData, { token })
     } catch (error) {
       console.error(`Failed to purchase marketplace listing ${identifier}:`, error)
-      return fallbackOrder(identifier, purchaseData)
+      return presentationDataOrThrow(token, () => fallbackOrder(identifier, purchaseData), error)
     }
   },
 
@@ -265,7 +266,7 @@ export const marketplaceRepository = {
       return await httpClient.post(apiEndpoints.marketplace.messageSeller(identifier), messageData, { token })
     } catch (error) {
       console.error(`Failed to message marketplace seller ${identifier}:`, error)
-      return fallbackMessage(identifier, messageData.body)
+      return presentationDataOrThrow(token, () => fallbackMessage(identifier, messageData.body), error)
     }
   },
 }

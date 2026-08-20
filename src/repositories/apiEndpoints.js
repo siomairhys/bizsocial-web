@@ -11,6 +11,9 @@ export const apiEndpoints = Object.freeze({
   profile: Object.freeze({
     me: '/profile/me',
     update: '/profile',
+    byUserId: (userId) => `/profile/${userId}`,
+    follow: (userId) => `/profile/${userId}/follow`,
+    suggestions: '/profile/suggestions',
   }),
   dashboard: Object.freeze({
     overview: '/dashboard/overview',
@@ -38,6 +41,14 @@ export const apiEndpoints = Object.freeze({
     create: '/pitch-reels',
     draftMe: '/pitch-reels/draft/me',
     byId: (pitchReelId) => `/pitch-reels/${pitchReelId}`,
+    interactions: (pitchReelId) => `/pitch-reels/${pitchReelId}/interactions`,
+    reactions: (pitchReelId) => `/pitch-reels/${pitchReelId}/reactions`,
+    comments: (pitchReelId) => `/pitch-reels/${pitchReelId}/comments`,
+    commentById: (pitchReelId, commentId) =>
+      `/pitch-reels/${pitchReelId}/comments/${commentId}`,
+    shares: (pitchReelId) => `/pitch-reels/${pitchReelId}/shares`,
+    views: (pitchReelId) => `/pitch-reels/${pitchReelId}/views`,
+    reports: (pitchReelId) => `/pitch-reels/${pitchReelId}/reports`,
   }),
   livePitches: Object.freeze({
     list: '/live-pitches',
@@ -125,6 +136,7 @@ export const apiEndpoints = Object.freeze({
     byId: (postId) => `/posts/${postId}`,
     react: (postId) => `/posts/${postId}/reactions`,
     comments: (postId) => `/posts/${postId}/comments`,
+    commentById: (postId, commentId) => `/posts/${postId}/comments/${commentId}`,
     shares: (postId) => `/posts/${postId}/shares`,
   }),
 })

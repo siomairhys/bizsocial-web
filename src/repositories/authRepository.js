@@ -1,6 +1,7 @@
 import { apiEndpoints } from './apiEndpoints'
 import { httpClient } from '../services/httpClient'
-import { DEFAULT_ACCOUNT_TOKEN, defaultAccount } from '../data/defaultSeedData'
+import { defaultAccount } from '../data/defaultSeedData'
+import { DEFAULT_ACCOUNT_TOKEN } from '../data/presentationAccount'
 
 function getToken(payload) {
   return (

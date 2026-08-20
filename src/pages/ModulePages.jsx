@@ -7,15 +7,18 @@ import StatusBadge from '../components/common/StatusBadge'
 import { DynamicIcon } from '../components/common/icons'
 import { seedImages } from '../data/defaultSeedData'
 import { useAuth } from '../modules/auth/context/useAuth'
+import { isPresentationAccount } from '../services/presentationData'
 import { analyticsRepository } from '../repositories/analyticsRepository'
 import { bizbucksRepository } from '../repositories/bizbucksRepository'
 import { bizquestRepository } from '../repositories/bizquestRepository'
 import { credtrackRepository } from '../repositories/credtrackRepository'
 import { coursesRepository } from '../repositories/coursesRepository'
+import { dashboardRepository } from '../repositories/dashboardRepository'
 import { eventsRepository } from '../repositories/eventsRepository'
 import { groupsRepository } from '../repositories/groupsRepository'
 import { marketplaceRepository } from '../repositories/marketplaceRepository'
 import { messagesRepository } from '../repositories/messagesRepository'
+import { profileRepository } from '../repositories/profileRepository'
 import { sponsorImpactRepository } from '../repositories/sponsorImpactRepository'
 
 const tabs = ['Overview', 'Featured', 'Saved', 'Mine']
@@ -80,11 +83,15 @@ function StatCard({ label, value, trend, icon = 'BarChart3', children }) {
   )
 }
 
-function SectionTitle({ title, action }) {
+function SectionTitle({ title, action, onAction }) {
   return (
     <div className="mb-4 flex items-center justify-between gap-3">
       <h2 className="text-lg font-bold text-slate-950">{title}</h2>
-      {action ? <button type="button" className="text-xs font-bold text-blue-600">{action}</button> : null}
+      {action ? (
+        <button type="button" onClick={onAction} className="text-xs font-bold text-blue-600">
+          {action}
+        </button>
+      ) : null}
     </div>
   )
 }
@@ -586,6 +593,9 @@ export function BuyBizBucksPage() {
 }
 
 export function CreateFundMeCampaignPage() {
+  const { token } = useAuth()
+  const showPresentationPreview = isPresentationAccount(token)
+
   return (
     <FormShell
       title="Create FundMe Campaign"
@@ -599,12 +609,12 @@ export function CreateFundMeCampaignPage() {
       <label className="block">
         <span className="mb-2 block text-xs font-bold text-slate-500">Campaign cover image</span>
         <div className="relative grid min-h-40 overflow-hidden rounded-xl border border-blue-300 bg-slate-50 text-center">
-          <img
+          {showPresentationPreview ? <img
             src={seedImages.fundMeApparelImage}
             alt=""
             className="absolute inset-0 h-full w-full object-cover"
             loading="lazy"
-          />
+          /> : null}
           <div className="absolute inset-0 bg-slate-950/45" />
           <div className="relative z-10 place-self-center text-white">
             <p className="text-sm font-bold text-white">Upload cover image or preview</p>
@@ -1158,7 +1168,7 @@ export function GroupDetailPage({ groupSlug, onNavigate }) {
               </button>
             </div>
             <div className="mt-5 flex items-center gap-3 border-t border-slate-200 pt-4">
-              <AvatarPlaceholder className="h-10 w-10" label="Marcus Holloway" />
+              <AvatarPlaceholder className="h-10 w-10" label="Member" />
               <input
                 value={postBody}
                 onChange={(event) => setPostBody(event.target.value)}
@@ -1566,11 +1576,11 @@ export function EventDetailPage({ eventSlug }) {
   const eventDate = formatEventDateParts(event.start_at)
   const attendees = Array.isArray(event.attendees) && event.attendees.length > 0
     ? event.attendees
-    : [
+    : isPresentationAccount(token) ? [
         { user_id: 'fallback-1', display_name: 'Alicia Moore' },
         { user_id: 'fallback-2', display_name: 'Marcus Lee' },
         { user_id: 'fallback-3', display_name: 'Dana Cruz' },
-      ]
+      ] : []
 
   return (
     <div className="space-y-4">
@@ -3176,44 +3186,155 @@ export function SettingsPage() {
   )
 }
 
-export function BizCardProfilePage() {
+function getProfileFallback(user) {
+  const firstName = user?.firstName || user?.first_name || ''
+  const lastName = user?.lastName || user?.last_name || ''
+  const displayName = user?.name || user?.fullName || user?.full_name || ''
+  const nameParts = displayName.trim().split(' ').filter(Boolean)
+
+  return {
+    firstName: firstName || nameParts[0] || '',
+    lastName: lastName || nameParts.slice(1).join(' '),
+    title: user?.title || 'Founder',
+    businessName: user?.businessName || user?.business_name || 'BizSocials Account',
+    industry: user?.industry || '',
+    website: user?.website || '',
+    location: user?.location || '',
+    bio: user?.bio || '',
+    photoUrl: user?.avatar_url || user?.avatarUrl || user?.photoUrl || '',
+    coverUrl: user?.cover_url || user?.coverUrl || '',
+    followerCount: 0,
+    followingCount: 0,
+    role: user?.role || 'user',
+    isActive: user?.is_active ?? true,
+  }
+}
+
+function getProfileDisplayName(profile) {
+  return [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || 'BizSocials Member'
+}
+
+function getProfileBadges(profile) {
+  const badges = []
+  if (profile?.isActive) badges.push('Profile Active')
+  if (profile?.industry) badges.push(profile.industry)
+  if (profile?.website) badges.push('Website Added')
+  if (profile?.location) badges.push('Location Added')
+  return badges.length ? badges : ['Profile Draft']
+}
+
+export function BizCardProfilePage({ onNavigate }) {
+  const { token, user } = useAuth()
+  const fallbackProfile = useMemo(() => getProfileFallback(user), [user])
+  const [profile, setProfile] = useState(fallbackProfile)
+  const [metrics, setMetrics] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+
+    async function loadProfile() {
+      if (!token) {
+        setProfile(fallbackProfile)
+        return
+      }
+
+      setLoading(true)
+      setError('')
+
+      try {
+        const [loadedProfile, dashboardOverview] = await Promise.all([
+          profileRepository.getMyProfile(token, fallbackProfile),
+          dashboardRepository.getOverview(token),
+        ])
+
+        if (!active) {
+          return
+        }
+
+        setProfile(loadedProfile)
+        setMetrics(Array.isArray(dashboardOverview?.metrics) ? dashboardOverview.metrics : [])
+      } catch (loadError) {
+        if (!active) {
+          return
+        }
+
+        setProfile(fallbackProfile)
+        setMetrics([])
+        setError(loadError instanceof Error ? loadError.message : 'Unable to load profile.')
+      } finally {
+        if (active) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadProfile()
+
+    return () => {
+      active = false
+    }
+  }, [token, fallbackProfile])
+
+  const displayName = getProfileDisplayName(profile)
+  const businessName = profile.businessName || 'BizSocials Account'
+  const roleLine = [profile.title, businessName].filter(Boolean).join(' - ')
+  const aboutText = profile.bio || 'Add a short profile bio so members understand what you build and who you help.'
+  const metricCards = metrics.length
+    ? metrics
+    : [
+        { label: 'Profile Views', value: '0', trend: null, icon: 'Eye' },
+        { label: 'Followers', value: Number(profile.followerCount || 0).toLocaleString(), trend: null, icon: 'Users' },
+        { label: 'Engagement', value: '0.0%', trend: null, icon: 'Heart' },
+        { label: 'Funding Raised', value: '$0', trend: null, icon: 'CircleDollarSign' },
+      ]
+
   return (
     <div className="space-y-4">
-      <PageHeader title="Marcus Holloway" description="Business profile, credibility snapshot, and public activity." actionLabel="Edit BizCard" actionIcon="UserRound" />
+      <PageHeader
+        title={displayName}
+        description={loading ? 'Loading profile from your workspace.' : 'Business profile, credibility snapshot, and public activity.'}
+        actionLabel="Edit BizCard"
+        actionIcon="UserRound"
+        onAction={() => onNavigate?.('/profile/edit')}
+      />
+      {error ? <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm font-semibold text-amber-700">{error}</div> : null}
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[var(--shadow-card)]">
         <div className="bg-gradient-to-r from-blue-700 to-cyan-500 p-6 text-white">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-center gap-4">
-              <AvatarPlaceholder className="h-20 w-20 border-4 border-white/40" label="Marcus Holloway" />
+              <AvatarPlaceholder className="h-20 w-20 border-4 border-white/40" label={displayName} imageUrl={profile.photoUrl} />
               <div>
-                <h2 className="text-3xl font-bold">Marcus Holloway</h2>
-                <p className="mt-1 text-sm text-blue-50">Founder - Holloway Designs LLC</p>
+                <h2 className="text-3xl font-bold">{displayName}</h2>
+                <p className="mt-1 text-sm text-blue-50">{roleLine}</p>
               </div>
             </div>
-            <button type="button" className="h-10 rounded-xl bg-white px-4 text-sm font-bold text-blue-700">View Public BizCard</button>
+            <button
+              type="button"
+              onClick={() => onNavigate?.('/profile/edit')}
+              className="h-10 rounded-xl bg-white px-4 text-sm font-bold text-blue-700 transition hover:bg-blue-50"
+            >
+              Update BizCard
+            </button>
           </div>
         </div>
       </section>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {[
-          ['Profile Views', '3,764', '+12.6%', 'Eye'],
-          ['Followers', '2,764', '+8.4%', 'Users'],
-          ['Engagement', '9.7%', '+15.3%', 'Heart'],
-          ['Funding Raised', '$24,850', '+18.7%', 'CircleDollarSign'],
-        ].map(([label, value, trend, icon]) => (
-          <StatCard key={label} label={label} value={value} trend={trend} icon={icon} />
+        {metricCards.map((item) => (
+          <StatCard key={item.label} label={item.label} value={item.value} trend={item.trend} icon={item.icon} />
         ))}
       </div>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <Card className="p-5">
-          <SectionTitle title="About Holloway Designs" action="Edit" />
+          <SectionTitle title={`About ${businessName}`} action="Edit" onAction={() => onNavigate?.('/profile/edit')} />
           <p className="text-sm leading-6 text-slate-500">
-            Holloway Designs helps growth-stage businesses clarify their brand, investor story, and customer experience.
+            {aboutText}
           </p>
         </Card>
         <Card className="p-5">
-          <SectionTitle title="Growth badges" />
-          {['Pitch Deck Approved', 'Seller Verified', 'Credit Ready'].map((item) => (
+          <SectionTitle title="Profile signals" />
+          {getProfileBadges(profile).map((item) => (
             <span key={item} className="mb-2 mr-2 inline-flex rounded-full bg-blue-100 px-3 py-2 text-xs font-bold text-blue-700">{item}</span>
           ))}
         </Card>
@@ -3360,7 +3481,7 @@ export function BizQuestChallengeDetailPage() {
   const tasks = Array.isArray(challenge?.tasks) ? challenge.tasks : []
   const leaderboard = Array.isArray(challenge?.leaderboard) ? challenge.leaderboard : []
   const completedTasks = tasks.filter((task) => task.viewer_completed).length
-  const imageUrl = challenge?.imageUrl || challenge?.cover_media_url || seedImages.pitchReelStudioImage
+  const imageUrl = challenge?.imageUrl || challenge?.cover_media_url || (isPresentationAccount(token) ? seedImages.pitchReelStudioImage : '')
   const openTasks = Math.max(Number(challenge?.task_count || tasks.length || 0) - completedTasks, 0)
 
   return (

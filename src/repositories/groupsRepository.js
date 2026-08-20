@@ -5,6 +5,7 @@
 
 import { httpClient } from '../services/httpClient'
 import { apiEndpoints } from './apiEndpoints'
+import { presentationDataOrThrow } from '../services/presentationData'
 
 export const fallbackGroupsData = {
   items: [
@@ -138,7 +139,7 @@ class GroupsRepository {
       return await httpClient.get(`${apiEndpoints.groups.list}?limit=${limit}&offset=${offset}`, { token })
     } catch (error) {
       console.error('Failed to fetch groups list:', error)
-      return { ...fallbackGroupsData, limit, offset }
+      return presentationDataOrThrow(token, { ...fallbackGroupsData, limit, offset }, error)
     }
   }
 
@@ -151,7 +152,7 @@ class GroupsRepository {
       return await httpClient.get(endpoint, { token })
     } catch (error) {
       console.error(`Failed to fetch group ${identifier}:`, error)
-      return getFallbackGroup(identifier)
+      return presentationDataOrThrow(token, () => getFallbackGroup(identifier), error)
     }
   }
 
@@ -168,7 +169,7 @@ class GroupsRepository {
       return await httpClient.get(`${apiEndpoints.groups.posts(groupId)}?limit=${limit}&offset=${offset}`, { token })
     } catch (error) {
       console.error(`Failed to fetch posts for group ${groupId}:`, error)
-      return getFallbackPosts(groupId, limit, offset)
+      return presentationDataOrThrow(token, () => getFallbackPosts(groupId, limit, offset), error)
     }
   }
 
@@ -181,7 +182,7 @@ class GroupsRepository {
       return await httpClient.get(`${apiEndpoints.groups.events(groupId)}?limit=${limit}&offset=${offset}`, { token })
     } catch (error) {
       console.error(`Failed to fetch events for group ${groupId}:`, error)
-      return { ...fallbackEvents, limit, offset }
+      return presentationDataOrThrow(token, { ...fallbackEvents, limit, offset }, error)
     }
   }
 }

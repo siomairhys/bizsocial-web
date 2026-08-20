@@ -9,6 +9,7 @@ import CreatePitchReelPage from './pages/CreatePitchReelPage'
 import CreatePostPage from './pages/CreatePostPage'
 import Dashboard from './pages/Dashboard'
 import FeedPage from './pages/FeedPage'
+import PostDetailPage from './pages/PostDetailPage'
 import FundMeCampaignDetailPage from './pages/FundMeCampaignDetailPage'
 import FundMePage from './pages/FundMePage'
 import LivePitchesPage from './pages/LivePitchesPage'
@@ -92,8 +93,21 @@ function AppContent() {
       return <FeedPage onNavigate={navigateTo} />
     }
 
+    if (route.startsWith('/feed/post/')) {
+      return <PostDetailPage postId={route.replace('/feed/post/', '')} onNavigate={navigateTo} />
+    }
+
     if (route === '/pitch-reels') {
       return <PitchReelsPage onNavigate={navigateTo} />
+    }
+
+    if (route.startsWith('/pitch-reels/')) {
+      return (
+        <PitchReelsPage
+          reelId={decodeURIComponent(route.replace('/pitch-reels/', ''))}
+          onNavigate={navigateTo}
+        />
+      )
     }
 
     if (route === '/live-pitches') {
@@ -205,7 +219,7 @@ function AppContent() {
     }
 
     if (route === '/profile') {
-      return <BizCardProfilePage />
+      return <BizCardProfilePage onNavigate={navigateTo} />
     }
 
     if (route === '/profile/edit') {

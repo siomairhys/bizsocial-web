@@ -1,6 +1,7 @@
 import { defaultDashboardOverview } from '../data/defaultSeedData'
 import { httpClient } from '../services/httpClient'
 import { apiEndpoints } from './apiEndpoints'
+import { isPresentationAccount, presentationDataOrThrow } from '../services/presentationData'
 
 const fallbackChallenge = {
   id: 1,
@@ -105,14 +106,14 @@ const fallbackList = {
   items: [fallbackChallenge],
 }
 
-function withFallbackImage(challenge) {
+function withFallbackImage(challenge, allowPresentationImage = false) {
   if (!challenge) {
-    return fallbackChallenge
+    throw new Error('BizQuest challenge was not found.')
   }
 
   return {
     ...challenge,
-    imageUrl: challenge.imageUrl || challenge.cover_media_url || defaultDashboardOverview.challenge?.imageUrl,
+    imageUrl: challenge.imageUrl || challenge.cover_media_url || (allowPresentationImage ? defaultDashboardOverview.challenge?.imageUrl : ''),
   }
 }
 
@@ -125,17 +126,17 @@ export const bizquestRepository = {
       )
     } catch (error) {
       console.error('Failed to fetch BizQuest challenges:', error)
-      return { ...fallbackList, status, limit, offset }
+      return presentationDataOrThrow(token, { ...fallbackList, status, limit, offset }, error)
     }
   },
 
   async getChallenge(token, challengeId = 'pitch-to-win') {
     try {
       const challenge = await httpClient.get(apiEndpoints.bizquest.byId(challengeId), { token })
-      return withFallbackImage(challenge)
+      return withFallbackImage(challenge, isPresentationAccount(token))
     } catch (error) {
       console.error('Failed to fetch BizQuest challenge:', error)
-      return withFallbackImage(fallbackChallenge)
+      return presentationDataOrThrow(token, () => withFallbackImage(fallbackChallenge, true), error)
     }
   },
 
@@ -144,7 +145,7 @@ export const bizquestRepository = {
       return await httpClient.post(apiEndpoints.bizquest.join(challengeId), undefined, { token })
     } catch (error) {
       console.error('Failed to join BizQuest challenge:', error)
-      return {
+      return presentationDataOrThrow(token, {
         id: 1,
         challenge_id: 1,
         user_id: 1,
@@ -152,7 +153,7 @@ export const bizquestRepository = {
         points: 100,
         joined_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      }
+      }, error)
     }
   },
 
@@ -161,7 +162,7 @@ export const bizquestRepository = {
       return await httpClient.post(apiEndpoints.bizquest.entries(challengeId), payload, { token })
     } catch (error) {
       console.error('Failed to submit BizQuest entry:', error)
-      return {
+      return presentationDataOrThrow(token, {
         id: Date.now(),
         challenge_id: 1,
         challenge_slug: 'pitch-to-win',
@@ -173,7 +174,7 @@ export const bizquestRepository = {
         status: 'submitted',
         submitted_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      }
+      }, error)
     }
   },
 }

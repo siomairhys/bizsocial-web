@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, Hash, ImagePlus, PlayCircle, UserRound, X } from 'lucide-react'
 
 import { useAuth } from '../modules/auth/context/useAuth'
 import { useMediaUpload } from '../modules/media/hooks/useMediaUpload'
 import { feedRepository } from '../repositories/feedRepository'
 import { mediaRepository } from '../repositories/mediaRepository'
+import { feedQueryKeys } from '../queryClient'
 
 const AUTO_SAVE_DELAY_MS = 900
 
@@ -60,9 +62,10 @@ function toUniqueList(values, marker = '') {
   return output
 }
 
-function CreatePostPage({ onNavigate }) {
+function CreatePostPage({ onNavigate, embedded = false, onClose, onPublished }) {
   const { token, user } = useAuth()
   const mediaUpload = useMediaUpload(token)
+  const queryClient = useQueryClient()
   const fileInputRef = useRef(null)
   const composerRef = useRef(null)
   const autoSaveTimeoutRef = useRef(null)
@@ -70,6 +73,7 @@ function CreatePostPage({ onNavigate }) {
 
   const [postText, setPostText] = useState('')
   const [visibility, setVisibility] = useState('public')
+  const [isBizQuest, setIsBizQuest] = useState(false)
   const [attachedFiles, setAttachedFiles] = useState([])
   const [topics, setTopics] = useState([])
   const [mentions, setMentions] = useState([])
@@ -86,6 +90,7 @@ function CreatePostPage({ onNavigate }) {
 
   const hasContent = Boolean(postText.trim())
   const hasDraftData = hasContent || topics.length > 0 || mentions.length > 0 || attachedFiles.length > 0
+  const canPublish = hasContent || attachedFiles.length > 0
 
   useEffect(() => {
     let active = true
@@ -105,6 +110,7 @@ function CreatePostPage({ onNavigate }) {
 
         setPostText(String(draft.content || ''))
         setVisibility(String(draft.visibility || 'public'))
+        setIsBizQuest(Boolean(draft.is_bizquest))
         setTopics(Array.isArray(draft.topics) ? toUniqueList(draft.topics, '#') : [])
         setMentions(Array.isArray(draft.mentions) ? toUniqueList(draft.mentions, '@') : [])
         setDraftSavedAt(draft.updated_at ? new Date(draft.updated_at).getTime() : null)
@@ -160,7 +166,7 @@ function CreatePostPage({ onNavigate }) {
         const saved = await feedRepository.saveMyDraft(token, {
           content: postText,
           visibility,
-          is_bizquest: false,
+          is_bizquest: isBizQuest,
           topics,
           mentions,
         })
@@ -178,7 +184,7 @@ function CreatePostPage({ onNavigate }) {
         window.clearTimeout(autoSaveTimeoutRef.current)
       }
     }
-  }, [token, isLoadingDraft, hasDraftData, postText, visibility, topics, mentions])
+  }, [token, isLoadingDraft, hasDraftData, postText, visibility, isBizQuest, topics, mentions])
 
   function handleAttachmentClick() {
     if (mediaUpload.isUploading) {
@@ -295,7 +301,7 @@ function CreatePostPage({ onNavigate }) {
       const saved = await feedRepository.saveMyDraft(token, {
         content: postText,
         visibility,
-        is_bizquest: false,
+        is_bizquest: isBizQuest,
         topics,
         mentions,
       })
@@ -312,8 +318,8 @@ function CreatePostPage({ onNavigate }) {
   async function handlePublish() {
     const content = postText.trim()
 
-    if (!content) {
-      setFormError('Write something before publishing.')
+    if (!canPublish) {
+      setFormError('Add text, a photo, or a video before publishing.')
       composerRef.current?.focus()
       return
     }
@@ -328,9 +334,9 @@ function CreatePostPage({ onNavigate }) {
 
     try {
       await feedRepository.createPost(token, {
-        content,
+        content: content || null,
         visibility,
-        is_bizquest: false,
+        is_bizquest: isBizQuest,
         media_ids: attachedFiles
           .map((item) => Number(item.mediaId || 0))
           .filter((mediaId) => Number.isInteger(mediaId) && mediaId > 0),
@@ -339,13 +345,19 @@ function CreatePostPage({ onNavigate }) {
       })
 
       await feedRepository.deleteMyDraft(token).catch(() => {})
+      await queryClient.invalidateQueries({ queryKey: feedQueryKeys.all })
 
       setPostText('')
       setAttachedFiles([])
+      setIsBizQuest(false)
       setTopics([])
       setMentions([])
       setDraftSavedAt(null)
-      onNavigate('/feed')
+      if (embedded) {
+        onPublished?.()
+      } else {
+        onNavigate('/feed')
+      }
     } catch (error) {
       setFormError(error?.message || 'Unable to publish post right now.')
     } finally {
@@ -354,6 +366,11 @@ function CreatePostPage({ onNavigate }) {
   }
 
   async function handleCancel() {
+    if (embedded) {
+      onClose?.()
+      return
+    }
+
     if (hasDraftData) {
       const shouldDiscard = window.confirm('Discard your current draft?')
       if (!shouldDiscard) {
@@ -369,10 +386,12 @@ function CreatePostPage({ onNavigate }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className={embedded ? '' : 'space-y-4'}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950">Create Post</h1>
+          <h1 id={embedded ? 'feed-composer-title' : undefined} className={embedded ? 'text-2xl font-bold tracking-tight text-slate-950' : 'text-3xl font-bold tracking-tight text-slate-950'}>
+            {embedded ? 'Create a post' : 'Create Post'}
+          </h1>
           <p className="mt-1 text-sm text-slate-500">
             Share your progress, insight, or business opportunity with the community.
           </p>
@@ -382,12 +401,12 @@ function CreatePostPage({ onNavigate }) {
           onClick={handleCancel}
           className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >
-          Cancel
+          {embedded ? 'Close' : 'Cancel'}
         </button>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,68%)_minmax(0,32%)]">
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[var(--shadow-card)] sm:p-5">
+      <div className={embedded ? 'mt-4' : 'grid gap-4 xl:grid-cols-[minmax(0,68%)_minmax(0,32%)]'}>
+        <section className={embedded ? '' : 'rounded-2xl border border-slate-200 bg-white p-4 shadow-[var(--shadow-card)] sm:p-5'}>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-2xl font-bold tracking-tight text-slate-900">Start a new post</h2>
             <div className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
@@ -419,6 +438,7 @@ function CreatePostPage({ onNavigate }) {
             value={postText}
             onChange={(event) => setPostText(event.target.value)}
             rows={6}
+            autoFocus={embedded}
             placeholder="Share a business win, question, update, or idea with the BizSocials community..."
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
           />
@@ -432,7 +452,7 @@ function CreatePostPage({ onNavigate }) {
                 id="create-post-visibility"
                 value={visibility}
                 onChange={(event) => setVisibility(event.target.value)}
-                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
               >
                 <option value="public">Public</option>
                 <option value="followers">Followers</option>
@@ -447,12 +467,17 @@ function CreatePostPage({ onNavigate }) {
             </div>
           </div>
 
+          <label className="mt-3 flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3">
+            <input type="checkbox" checked={isBizQuest} onChange={(event) => setIsBizQuest(event.target.checked)} className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+            <span><span className="block text-sm font-bold text-slate-800">Include in BizQuest</span><span className="block text-xs text-slate-500">Show this post in the BizQuest feed.</span></span>
+          </label>
+
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={handleAttachmentClick}
               disabled={mediaUpload.isUploading}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <ImagePlus className="h-3.5 w-3.5" aria-hidden="true" />
               {mediaUpload.isUploading ? `Uploading... ${mediaUpload.progress}%` : 'Add photo/video'}
@@ -460,7 +485,7 @@ function CreatePostPage({ onNavigate }) {
             <button
               type="button"
               onClick={() => onNavigate('/pitch-reels')}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
             >
               <PlayCircle className="h-3.5 w-3.5" aria-hidden="true" />
               Create Pitch Reel
@@ -513,12 +538,13 @@ function CreatePostPage({ onNavigate }) {
                     }
                   }}
                   placeholder="e.g. FundingReady"
-                  className="h-9 w-full rounded-xl border border-slate-200 px-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="h-11 w-full rounded-xl border border-slate-200 px-3 text-base text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
                 <button
                   type="button"
                   onClick={addTopic}
-                  className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
+                  aria-label="Add topic"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-blue-700 transition hover:bg-blue-50"
                 >
                   <Hash className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
@@ -556,12 +582,13 @@ function CreatePostPage({ onNavigate }) {
                     }
                   }}
                   placeholder="e.g. BizSocials"
-                  className="h-9 w-full rounded-xl border border-slate-200 px-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="h-11 w-full rounded-xl border border-slate-200 px-3 text-base text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
                 <button
                   type="button"
                   onClick={addMention}
-                  className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
+                  aria-label="Add mention"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-blue-700 transition hover:bg-blue-50"
                 >
                   <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
@@ -600,7 +627,7 @@ function CreatePostPage({ onNavigate }) {
               <button
                 type="button"
                 onClick={handlePublish}
-                disabled={isPublishing || mediaUpload.isUploading}
+                disabled={!canPublish || isPublishing || mediaUpload.isUploading}
                 className="inline-flex h-10 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-blue-300"
               >
                 {isPublishing ? 'Publishing...' : 'Publish Post'}
@@ -609,7 +636,7 @@ function CreatePostPage({ onNavigate }) {
           </div>
         </section>
 
-        <div className="space-y-4 xl:sticky xl:top-[86px] xl:self-start">
+        {!embedded ? <div className="space-y-4 xl:sticky xl:top-[86px] xl:self-start">
           <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[var(--shadow-card)] sm:p-5">
             <h3 className="text-xl font-bold tracking-tight text-slate-900">Post for impact</h3>
 
@@ -635,7 +662,7 @@ function CreatePostPage({ onNavigate }) {
               </div>
             </div>
           </section>
-        </div>
+        </div> : null}
       </div>
     </div>
   )

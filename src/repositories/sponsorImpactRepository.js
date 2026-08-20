@@ -1,5 +1,6 @@
 import { httpClient } from '../services/httpClient'
 import { apiEndpoints } from './apiEndpoints'
+import { presentationDataOrThrow } from '../services/presentationData'
 
 const fallbackOverview = {
   period: 'last_30_days',
@@ -137,40 +138,40 @@ function fallbackExport(period = 'last_30_days') {
 export const sponsorImpactRepository = {
   async getOverview(token, { period = 'last_30_days' } = {}) {
     if (!token) {
-      return { ...fallbackOverview, period }
+      return presentationDataOrThrow(token, { ...fallbackOverview, period }, null, 'Sponsor data requires an authenticated account.')
     }
 
     try {
       return await httpClient.get(`${apiEndpoints.sponsorImpact.overview}?period=${encodeURIComponent(period)}`, { token })
     } catch (error) {
       console.error('Failed to fetch sponsor impact overview:', error)
-      return { ...fallbackOverview, period }
+      return presentationDataOrThrow(token, { ...fallbackOverview, period }, error)
     }
   },
 
   async listCampaigns(token, { status = 'active', limit = 20, offset = 0 } = {}) {
     if (!token) {
-      return { ...fallbackCampaigns, status, limit, offset }
+      return presentationDataOrThrow(token, { ...fallbackCampaigns, status, limit, offset }, null, 'Sponsor data requires an authenticated account.')
     }
 
     try {
       return await httpClient.get(`${apiEndpoints.sponsorImpact.campaigns}?status=${encodeURIComponent(status)}&limit=${limit}&offset=${offset}`, { token })
     } catch (error) {
       console.error('Failed to fetch sponsor campaigns:', error)
-      return { ...fallbackCampaigns, status, limit, offset }
+      return presentationDataOrThrow(token, { ...fallbackCampaigns, status, limit, offset }, error)
     }
   },
 
   async exportReport(token, { period = 'last_30_days' } = {}) {
     if (!token) {
-      return fallbackExport(period)
+      return presentationDataOrThrow(token, () => fallbackExport(period), null, 'Sponsor export requires an authenticated account.')
     }
 
     try {
       return await httpClient.get(`${apiEndpoints.sponsorImpact.export}?period=${encodeURIComponent(period)}`, { token })
     } catch (error) {
       console.error('Failed to export sponsor impact report:', error)
-      return fallbackExport(period)
+      return presentationDataOrThrow(token, () => fallbackExport(period), error)
     }
   },
 }

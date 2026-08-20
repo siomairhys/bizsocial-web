@@ -1,0 +1,2 @@
+export const DEFAULT_ACCOUNT_TOKEN =
+  'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJkZW1vLXVzZXItMSIsImVtYWlsIjoibWFyY3VzLmhvbGxvd2F5QGJpenNvY2lhbHMubG9jYWwiLCJleHAiOjE4OTM0NTYwMDB9.demo'

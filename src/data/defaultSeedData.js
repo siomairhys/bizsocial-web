@@ -3,9 +3,7 @@ import feedWorkshopImage from '../assets/default-seed/feed-workshop.png'
 import fundMeApparelImage from '../assets/default-seed/fundme-apparel-studio.png'
 import livePitchStageImage from '../assets/default-seed/live-pitch-stage.png'
 import pitchReelStudioImage from '../assets/default-seed/pitch-reel-studio.png'
-
-export const DEFAULT_ACCOUNT_TOKEN =
-  'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJkZW1vLXVzZXItMSIsImVtYWlsIjoibWFyY3VzLmhvbGxvd2F5QGJpenNvY2lhbHMubG9jYWwiLCJleHAiOjE4OTM0NTYwMDB9.demo'
+export { DEFAULT_ACCOUNT_TOKEN } from './presentationAccount'
 
 export const defaultAccount = {
   id: 1,
